@@ -1,5 +1,5 @@
 {
-  "name": "back-end",
+  "name": "dwp-be",
   "version": "1.0.0",
   "description": "RESTFul API Application - Given",
   "main": "server.js",
