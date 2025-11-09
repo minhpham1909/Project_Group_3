@@ -36,6 +36,7 @@ async function signUp(req, res, next) {
           avatar: req.body.profile.avatar || "",
         },
         status: req.body.status || 1,
+        roleRequestStatus: "none",
       });
 
       // Kiểm tra xem vai trò có hợp lệ không
