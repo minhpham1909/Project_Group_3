@@ -16,6 +16,7 @@ export default function Cart({ navigation }) {
     getTotalItems,
     refreshCart
   } = useCart();
+  
 
   const handleRemoveItem = (itemId) => {
     Alert.alert(
