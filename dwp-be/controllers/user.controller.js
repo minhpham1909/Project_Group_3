@@ -214,25 +214,54 @@ const chatBot = async (req, res) => {
   }
 };
 
-const requestRoleSupplier = async (req, res, next) => {
+const requestRoleSupplier = async (req, res) => {
   try {
     const userId = req.params.id;
     const user = await userModel.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (user.roleRequestStatus === "pending") {
+      return res.status(400).json({ message: "Request already pending" });
     }
 
     await userModel.findByIdAndUpdate(userId, {
-      roleRequestStatus: req.body.roleRequestStatus || "pending",
+      roleRequestStatus: "pending",
     });
 
     res.status(200).json({ message: "Request sent successfully" });
   } catch (error) {
-    if (error.name === "CastError") {
+    if (error.name === "CastError")
       res.status(400).json({ message: "Invalid user ID" });
-    } else {
-      res.status(500).json({ error: error.message });
+    else res.status(500).json({ error: error.message });
+  }
+};
+
+// Admin duyệt hoặc từ chối
+const changeRequestSupplier = async (req, res) => {
+  try {
+    const { roleRequestStatus } = req.body;
+    const userId = req.params.id;
+    const user = await userModel.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const updateData = { roleRequestStatus };
+
+    if (roleRequestStatus === "approved") {
+      updateData.role = user.requestedRole || 2;
     }
+
+    await userModel.findByIdAndUpdate(userId, updateData, { new: true });
+
+    res.status(200).json({
+      message:
+        roleRequestStatus === "approved"
+          ? "User promoted to supplier successfully"
+          : "Request status updated successfully",
+    });
+  } catch (error) {
+    if (error.name === "CastError")
+      res.status(400).json({ message: "Invalid user ID" });
+    else res.status(500).json({ error: error.message });
   }
 };
 
@@ -243,4 +272,5 @@ module.exports = {
   getUserId,
   chatBot,
   requestRoleSupplier,
+  changeRequestSupplier,
 };

@@ -43,6 +43,9 @@ const UsersSchema = new mongoose.Schema(
       type: Number,
       enum: [1, 2, 3],
       required: true,
+      // 1: "Customer",
+      // 2: "Supplier",
+      // 3: "Admin",
     },
     profile: {
       name: {
