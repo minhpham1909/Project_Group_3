@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Assignment",
-    "slug": "Assignment",
+    "name": "Front-End",
+    "slug": "slayme",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,17 +13,36 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.myapp.bundle",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Ứng dụng này cần quyền truy cập camera để chụp ảnh.",
+        "NSLocationWhenInUseUsageDescription": "Ứng dụng này cần quyền truy cập vị trí của bạn để hiển thị vị trí trên bản đồ.",
+        "NSLocationAlwaysUsageDescription": "This app needs access to your location to show maps."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "permissions": [
+        "camera",
+        "camera roll",
+        "location",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "package": "com.myapp.bundle"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "78f8930c-d701-4589-a54d-2ea317fb8165"
+      }
+    },
+    "owner": "tungtx6-dev"
   }
 }
