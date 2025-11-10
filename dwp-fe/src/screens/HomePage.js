@@ -22,19 +22,48 @@ const HomeScreen = ({ navigation }) => {
   const [filterPrice, setFilterPrice] = useState("lowToHigh");
   const [filterLocation, setFilterLocation] = useState("All");
   const [filterSearch, setFilterSearch] = useState("");
-  const [selectedService, setSelectedService] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
   const role = useSelector((state) => state.auth.user?.role);
+  const userId = useSelector((state) => state.auth.user?.id);
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     getAllStore();
   }, []);
 
-  const getAllStore = async () => {
+  const fetchNotifications = async () => {
+    if (!userId) {
+      return;
+    }
+
     try {
       const response = await axios.get(
-        `${API_ROOT}/store/listStore`
+        `${API_ROOT}/service-orders/getNotification/${userId}`
       );
+
+      if (response.data && Array.isArray(response.data.orders)) {
+        const orders = response.data.orders;
+        const pending = orders.filter(
+          (order) => order.status === "Pending"
+        ).length;
+        setPendingCount(pending); 
+      } else {
+        console.error("Dữ liệu không đúng cấu trúc:", response.data);
+      }
+    } catch (err) {
+      console.error("Error fetching notifications:", err);
+    }
+  };
+
+useEffect(() => {
+  if (userId) {
+    fetchNotifications();
+  }
+}, [userId]);
+
+
+  const getAllStore = async () => {
+    try {
+      const response = await axios.get(`${API_ROOT}/store/listStore`);
       setStores(response.data || []);
       setFilteredStores(response.data || []);
     } catch (error) {
@@ -85,7 +114,7 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
@@ -93,7 +122,7 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.logoContainer}>
             <SLAYME width={160} height={40} />
           </View>
-          
+
           <View style={styles.searchSection}>
             <View style={styles.searchContainer}>
               <Ionicons
@@ -134,8 +163,19 @@ const HomeScreen = ({ navigation }) => {
                   )
                 }
               >
-                <Ionicons name="notifications-outline" size={28} color={COLORS.TEXT} />
+                <Ionicons
+                  name="notifications-outline"
+                  size={28}
+                  color={COLORS.TEXT}
+                />
+
+                {pendingCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{pendingCount}</Text>
+                  </View>
+                )}
               </TouchableOpacity>
+
               {/* <TouchableOpacity
                 style={styles.iconButton}
                 onPress={() => navigation.navigate("Cart")}
@@ -157,15 +197,17 @@ const HomeScreen = ({ navigation }) => {
               ]}
               onPress={() => setFilterPrice("lowToHigh")}
             >
-              <Ionicons 
-                name="arrow-up" 
-                size={16} 
-                color={filterPrice === "lowToHigh" ? COLORS.WHITE : COLORS.GRAY} 
+              <Ionicons
+                name="arrow-up"
+                size={16}
+                color={filterPrice === "lowToHigh" ? COLORS.WHITE : COLORS.GRAY}
               />
-              <Text style={[
-                styles.filterText,
-                filterPrice === "lowToHigh" && styles.selectedFilterText
-              ]}>
+              <Text
+                style={[
+                  styles.filterText,
+                  filterPrice === "lowToHigh" && styles.selectedFilterText,
+                ]}
+              >
                 Tăng dần
               </Text>
             </TouchableOpacity>
@@ -176,15 +218,17 @@ const HomeScreen = ({ navigation }) => {
               ]}
               onPress={() => setFilterPrice("highToLow")}
             >
-              <Ionicons 
-                name="arrow-down" 
-                size={16} 
-                color={filterPrice === "highToLow" ? COLORS.WHITE : COLORS.GRAY} 
+              <Ionicons
+                name="arrow-down"
+                size={16}
+                color={filterPrice === "highToLow" ? COLORS.WHITE : COLORS.GRAY}
               />
-              <Text style={[
-                styles.filterText,
-                filterPrice === "highToLow" && styles.selectedFilterText
-              ]}>
+              <Text
+                style={[
+                  styles.filterText,
+                  filterPrice === "highToLow" && styles.selectedFilterText,
+                ]}
+              >
                 Giảm dần
               </Text>
             </TouchableOpacity>
@@ -196,7 +240,11 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Dịch vụ nổi bật</Text>
             <Text style={styles.sectionSubtitle}>
-              {filteredStores.reduce((count, store) => count + (store.services?.length || 0), 0)} dịch vụ
+              {filteredStores.reduce(
+                (count, store) => count + (store.services?.length || 0),
+                0
+              )}{" "}
+              dịch vụ
             </Text>
           </View>
 
@@ -205,7 +253,9 @@ const HomeScreen = ({ navigation }) => {
             <View style={styles.emptyContainer}>
               <Ionicons name="search-outline" size={64} color={COLORS.GRAY} />
               <Text style={styles.emptyText}>Không tìm thấy dịch vụ nào</Text>
-              <Text style={styles.emptySubtext}>Thử tìm kiếm với từ khóa khác</Text>
+              <Text style={styles.emptySubtext}>
+                Thử tìm kiếm với từ khóa khác
+              </Text>
             </View>
           ) : (
             <View style={styles.productRow}>
@@ -219,12 +269,16 @@ const HomeScreen = ({ navigation }) => {
                   >
                     <View style={styles.imageContainer}>
                       <Image
-                        source={{ uri: store.image?.[0] || "https://via.placeholder.com/200" }}
+                        source={{
+                          uri:
+                            store.image?.[0] ||
+                            "https://via.placeholder.com/200",
+                        }}
                         style={styles.productImage}
                       />
                       <View style={styles.priceBadge}>
                         <Text style={styles.priceBadgeText}>
-                          {service.service_price?.toLocaleString('vi-VN')} VND
+                          {service.service_price?.toLocaleString("vi-VN")} VND
                         </Text>
                       </View>
                     </View>
@@ -233,13 +287,21 @@ const HomeScreen = ({ navigation }) => {
                         {service.service_name}
                       </Text>
                       <View style={styles.storeInfo}>
-                        <Ionicons name="storefront-outline" size={14} color={COLORS.GRAY} />
+                        <Ionicons
+                          name="storefront-outline"
+                          size={14}
+                          color={COLORS.GRAY}
+                        />
                         <Text style={styles.storeName} numberOfLines={1}>
                           {store.nameShop}
                         </Text>
                       </View>
                       <View style={styles.locationInfo}>
-                        <Ionicons name="location-outline" size={14} color={COLORS.GRAY} />
+                        <Ionicons
+                          name="location-outline"
+                          size={14}
+                          color={COLORS.GRAY}
+                        />
                         <Text style={styles.locationText} numberOfLines={1}>
                           {store.address}
                         </Text>
@@ -258,8 +320,8 @@ const HomeScreen = ({ navigation }) => {
             <Text style={styles.sectionTitle}>Xu hướng</Text>
             <Ionicons name="flame" size={24} color={COLORS.WARNING} />
           </View>
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.blogScrollContent}
           >
@@ -269,7 +331,9 @@ const HomeScreen = ({ navigation }) => {
                   <Image source={item.image} style={styles.blogImage} />
                 </View>
                 <View style={styles.blogContent}>
-                  <Text style={styles.blogText} numberOfLines={2}>{item.title}</Text>
+                  <Text style={styles.blogText} numberOfLines={2}>
+                    {item.title}
+                  </Text>
                   <View style={styles.blogButtons}>
                     <TouchableOpacity
                       style={styles.linkContainerFB}
@@ -279,7 +343,11 @@ const HomeScreen = ({ navigation }) => {
                         )
                       }
                     >
-                      <Ionicons name="logo-facebook" size={16} color={COLORS.WHITE} />
+                      <Ionicons
+                        name="logo-facebook"
+                        size={16}
+                        color={COLORS.WHITE}
+                      />
                       <Text style={styles.linkText}>Facebook</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -290,7 +358,11 @@ const HomeScreen = ({ navigation }) => {
                         )
                       }
                     >
-                      <Ionicons name="logo-tiktok" size={16} color={COLORS.WHITE} />
+                      <Ionicons
+                        name="logo-tiktok"
+                        size={16}
+                        color={COLORS.WHITE}
+                      />
                       <Text style={styles.linkText}>TikTok</Text>
                     </TouchableOpacity>
                   </View>
@@ -703,6 +775,40 @@ const styles = StyleSheet.create({
     fontSize: FONTS.REGULAR,
     color: COLORS.GRAY,
     lineHeight: 22,
+  },
+  iconButton: {
+    position: "relative",
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: COLORS.WHITE,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    shadowColor: COLORS.BLACK,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  badge: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    backgroundColor: COLORS.PRIMARY,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+
+  badgeText: {
+    color: COLORS.BLACK,
+    fontSize: 10,
+    fontWeight: "bold",
   },
 });
 
