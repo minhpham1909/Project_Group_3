@@ -22,7 +22,7 @@ export const ROUTER = {
 
 export const ROLE_NAME = {
   1: "Customer",
-  2: "Field Owner",
+  2: "Supplier",
   3: "Admin",
 };
 

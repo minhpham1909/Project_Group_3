@@ -5,10 +5,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  TextInput,
   ActivityIndicator,
   Platform,
   Alert,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,7 +21,6 @@ import { API_ROOT, COLORS, FONTS, SPACING } from "../utils/constant";
 
 export default function RequestOrder({ navigation }) {
   const [selectedValue, setSelectedValue] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
   const [stores, setStores] = useState([]);
   const [selectedStore, setSelectedStore] = useState("");
   const [services, setServices] = useState([]);
@@ -31,6 +30,9 @@ export default function RequestOrder({ navigation }) {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [storesLoading, setStoresLoading] = useState(true);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [showStoreModal, setShowStoreModal] = useState(false);
+  const [showServiceModal, setShowServiceModal] = useState(false);
 
   const userName = useSelector((state) => state.auth.user?.name);
   const userId = useSelector((state) => state.auth.user?.id);
@@ -40,6 +42,7 @@ export default function RequestOrder({ navigation }) {
     try {
       setStoresLoading(true);
       const response = await axios.get(`${API_ROOT}/store/listStore`);
+      console.log("Stores data:", response.data); // Log để kiểm tra dữ liệu
       setStores(response.data || []);
       if (response.data && response.data.length > 0) {
         setSelectedStore(response.data[0]._id);
@@ -55,7 +58,8 @@ export default function RequestOrder({ navigation }) {
   const getServicesForStore = (storeId) => {
     const store = stores.find((s) => s._id === storeId); // Tìm cửa hàng theo ID
     if (store) {
-      setServices(store.services); // Cập nhật dịch vụ của cửa hàng đã chọn
+      console.log("Services for store:", store.services); // Log để kiểm tra dịch vụ
+      setServices(store.services || []); // Cập nhật dịch vụ của cửa hàng đã chọn
     }
   };
 
@@ -70,26 +74,40 @@ export default function RequestOrder({ navigation }) {
     }
   }, [selectedStore, stores]);
 
+  // Hàm xử lý thay đổi thời gian
+  const onTimeChange = (event, date) => {
+    if (event.type === "set" || Platform.OS === "android") {
+      // Android không có event.type rõ ràng
+      const hours = date.getHours().toString().padStart(2, "0");
+      const minutes = date.getMinutes().toString().padStart(2, "0");
+      const timeString = `${hours}:${minutes}`;
+      setSelectedTime(timeString);
+    }
+    if (Platform.OS === "ios") {
+      setShowTimePicker(false); // Auto đóng modal trên iOS sau khi chọn
+    }
+  };
+
   // Hàm xử lý khi người dùng chọn ngày
   const onDayPress = (day) => {
     setSelectedDate(day.dateString); // Lưu ngày đã chọn
+    setShowCalendar(false);
     setShowTimePicker(true); // Hiển thị bộ chọn thời gian
   };
 
   // Hàm xử lý khi người dùng chọn thời gian
-  const onTimeChange = (event, selectedDateTime) => {
+  const showTimePickerHandler = () => {
     if (Platform.OS === "android") {
-      setShowTimePicker(false);
-    }
-
-    if (event.type === "set" && selectedDateTime) {
-      const hours = selectedDateTime.getHours().toString().padStart(2, "0");
-      const minutes = selectedDateTime.getMinutes().toString().padStart(2, "0");
-      setSelectedTime(`${hours}:${minutes}`);
-    }
-
-    if (Platform.OS === "ios" && event.type === "dismissed") {
-      setShowTimePicker(false);
+      DateTimePicker.open({
+        value: selectedTime
+          ? new Date(`2000-01-01T${selectedTime}`)
+          : new Date(),
+        mode: "time",
+        is24Hour: true,
+        onChange: onTimeChange,
+      });
+    } else {
+      setShowTimePicker(true); // iOS thì dùng modal
     }
   };
 
@@ -167,7 +185,7 @@ export default function RequestOrder({ navigation }) {
 
   if (storesLoading) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.PRIMARY} />
           <Text style={styles.loadingText}>Đang tải danh sách cửa hàng...</Text>
@@ -177,7 +195,7 @@ export default function RequestOrder({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -187,7 +205,9 @@ export default function RequestOrder({ navigation }) {
           <Ionicons name="arrow-back" size={24} color={COLORS.WHITE} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Đặt lịch dịch vụ</Text>
-        <View style={styles.placeholder} />
+        <View style={styles.headerRight}>
+          <Ionicons name="help-circle-outline" size={24} color={COLORS.WHITE} />
+        </View>
       </View>
 
       <ScrollView
@@ -195,73 +215,292 @@ export default function RequestOrder({ navigation }) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Step 1: Select Store */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.stepNumber}>
-              <Text style={styles.stepNumberText}>1</Text>
-            </View>
-            <Text style={styles.sectionTitle}>Chọn cửa hàng</Text>
-          </View>
-          <View style={styles.pickerContainer}>
-            <Ionicons name="storefront-outline" size={20} color={COLORS.PRIMARY} style={styles.pickerIcon} />
-            <Picker
-              selectedValue={selectedStore}
-              onValueChange={(itemValue) => setSelectedStore(itemValue)}
-              style={styles.picker}
+        {/* Progress Bar */}
+        <View style={styles.progressBar}>
+          <View style={styles.progressStep}>
+            <View
+              style={[
+                styles.progressCircle,
+                selectedStore && styles.progressCircleActive,
+              ]}
             >
-              {stores.length === 0 ? (
-                <Picker.Item label="Không có cửa hàng" value="" />
-              ) : (
-                stores.map((store, index) => (
-                  <Picker.Item key={store._id || index} label={store.nameShop || "Cửa hàng"} value={store._id} />
-                ))
-              )}
-            </Picker>
+              <Text style={styles.progressCircleText}>1</Text>
+            </View>
+            <Text style={styles.progressLabel}>Cửa hàng</Text>
+          </View>
+          <View style={styles.progressLine} />
+          <View style={styles.progressStep}>
+            <View
+              style={[
+                styles.progressCircle,
+                selectedService && styles.progressCircleActive,
+              ]}
+            >
+              <Text style={styles.progressCircleText}>2</Text>
+            </View>
+            <Text style={styles.progressLabel}>Dịch vụ</Text>
+          </View>
+          <View style={styles.progressLine} />
+          <View style={styles.progressStep}>
+            <View
+              style={[
+                styles.progressCircle,
+                selectedDate && styles.progressCircleActive,
+              ]}
+            >
+              <Text style={styles.progressCircleText}>3</Text>
+            </View>
+            <Text style={styles.progressLabel}>Ngày giờ</Text>
           </View>
         </View>
 
-        {/* Step 2: Select Service */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.stepNumber}>
-              <Text style={styles.stepNumberText}>2</Text>
+        {/* Store Selection Card */}
+        <TouchableOpacity
+          style={styles.selectionCard}
+          onPress={() => setShowStoreModal(true)}
+        >
+          <View style={styles.cardContent}>
+            <Ionicons
+              name="storefront-outline"
+              size={28}
+              color={COLORS.PRIMARY}
+            />
+            <View style={styles.cardText}>
+              <Text style={styles.cardTitle}>Chọn cửa hàng</Text>
+              <Text style={styles.cardSubtitle}>
+                {selectedStore
+                  ? stores.find((s) => s._id === selectedStore)?.nameShop ||
+                    "Chưa chọn"
+                  : "Chọn cửa hàng gần bạn"}
+              </Text>
             </View>
-            <Text style={styles.sectionTitle}>Chọn dịch vụ</Text>
+            <Ionicons name="chevron-forward" size={24} color={COLORS.GRAY} />
           </View>
-          <View style={styles.pickerContainer}>
-            <Ionicons name="sparkles-outline" size={20} color={COLORS.PRIMARY} style={styles.pickerIcon} />
-            <Picker
-              selectedValue={selectedService}
-              onValueChange={(itemValue) => setSelectedService(itemValue)}
-              style={styles.picker}
-              enabled={selectedStore && services.length > 0}
+        </TouchableOpacity>
+
+        {/* Service Selection Card */}
+        <TouchableOpacity
+          style={styles.selectionCard}
+          onPress={() => setShowServiceModal(true)}
+          disabled={!selectedStore}
+        >
+          <View style={styles.cardContent}>
+            <Ionicons
+              name="sparkles-outline"
+              size={28}
+              color={selectedStore ? COLORS.PRIMARY : COLORS.GRAY}
+            />
+            <View style={styles.cardText}>
+              <Text style={styles.cardTitle}>Chọn dịch vụ</Text>
+              <Text style={styles.cardSubtitle}>
+                {selectedService
+                  ? services.find((s) => s._id === selectedService)
+                      ?.service_name || "Chưa chọn"
+                  : selectedStore
+                  ? "Chọn dịch vụ phù hợp"
+                  : "Chọn cửa hàng trước"}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={COLORS.GRAY} />
+          </View>
+        </TouchableOpacity>
+
+        {/* Date Time Selection Card */}
+        <TouchableOpacity
+          style={styles.selectionCard}
+          onPress={() => setShowCalendar(true)}
+          disabled={!selectedService}
+        >
+          <View style={styles.cardContent}>
+            <Ionicons
+              name="calendar-outline"
+              size={28}
+              color={selectedService ? COLORS.PRIMARY : COLORS.GRAY}
+            />
+            <View style={styles.cardText}>
+              <Text style={styles.cardTitle}>Chọn ngày & giờ</Text>
+              <Text style={styles.cardSubtitle}>
+                {selectedDate && selectedTime
+                  ? `${new Date(selectedDate).toLocaleDateString(
+                      "vi-VN"
+                    )} - ${selectedTime}`
+                  : selectedService
+                  ? "Chọn thời gian tiện lợi"
+                  : "Chọn dịch vụ trước"}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={COLORS.GRAY} />
+          </View>
+        </TouchableOpacity>
+
+        {/* Summary Card */}
+        {selectedStore && selectedService && selectedDate && selectedTime && (
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryTitle}>Tóm tắt đặt lịch</Text>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Cửa hàng:</Text>
+              <Text style={styles.summaryValue}>
+                {stores.find((s) => s._id === selectedStore)?.nameShop}
+              </Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Dịch vụ:</Text>
+              <Text style={styles.summaryValue}>
+                {services.find((s) => s._id === selectedService)?.service_name}
+              </Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Thời gian:</Text>
+              <Text style={styles.summaryValue}>
+                {new Date(selectedDate).toLocaleDateString("vi-VN")} -{" "}
+                {selectedTime}
+              </Text>
+            </View>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Bottom Action Bar */}
+      <View style={styles.bottomBar}>
+        <TouchableOpacity
+          style={[
+            styles.actionButton,
+            (!selectedStore ||
+              !selectedService ||
+              !selectedDate ||
+              !selectedTime) &&
+              styles.actionButtonDisabled,
+          ]}
+          onPress={createOrder}
+          disabled={
+            loading ||
+            !selectedStore ||
+            !selectedService ||
+            !selectedDate ||
+            !selectedTime
+          }
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color={COLORS.WHITE} />
+          ) : (
+            <>
+              <Ionicons name="send" size={20} color={COLORS.WHITE} />
+              <Text style={styles.actionButtonText}>Xác nhận đặt lịch</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* Store Modal with Picker */}
+      <Modal
+        visible={showStoreModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowStoreModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Chọn cửa hàng</Text>
+              <TouchableOpacity onPress={() => setShowStoreModal(false)}>
+                <Ionicons name="close" size={24} color={COLORS.GRAY} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.pickerWrapper}>
+              <Text style={styles.pickerLabel}>Danh sách cửa hàng</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={selectedStore}
+                  onValueChange={(itemValue) => {
+                    setSelectedStore(itemValue);
+                  }}
+                  style={styles.picker}
+                  itemStyle={styles.pickerItem}
+                >
+                  <Picker.Item label="Chọn cửa hàng" value="" />
+                  {stores.map((store) => (
+                    <Picker.Item
+                      key={store._id}
+                      label={store.nameShop || "Cửa hàng"}
+                      value={store._id}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setShowStoreModal(false)}
             >
-              {services.length === 0 ? (
-                <Picker.Item label={selectedStore ? "Không có dịch vụ" : "Chọn cửa hàng trước"} value="" />
-              ) : (
-                services.map((service) => (
-                  <Picker.Item
-                    key={service._id}
-                    label={service.service_name || "Dịch vụ"}
-                    value={service._id}
-                  />
-                ))
-              )}
-            </Picker>
+              <Text style={styles.modalButtonText}>Xong</Text>
+            </TouchableOpacity>
           </View>
         </View>
+      </Modal>
 
-        {/* Step 3: Select Date and Time */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.stepNumber}>
-              <Text style={styles.stepNumberText}>3</Text>
+      {/* Service Modal with Picker */}
+      <Modal
+        visible={showServiceModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowServiceModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Chọn dịch vụ</Text>
+              <TouchableOpacity onPress={() => setShowServiceModal(false)}>
+                <Ionicons name="close" size={24} color={COLORS.GRAY} />
+              </TouchableOpacity>
             </View>
-            <Text style={styles.sectionTitle}>Chọn ngày và giờ</Text>
+            <View style={styles.pickerWrapper}>
+              <Text style={styles.pickerLabel}>Danh sách dịch vụ</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={selectedService}
+                  onValueChange={(itemValue) => {
+                    setSelectedService(itemValue);
+                  }}
+                  style={styles.picker}
+                  itemStyle={styles.pickerItem}
+                  enabled={services.length > 0}
+                >
+                  <Picker.Item label="Chọn dịch vụ" value="" />
+                  {services.map((service) => (
+                    <Picker.Item
+                      key={service._id}
+                      label={service.service_name || "Dịch vụ"}
+                      value={service._id}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setShowServiceModal(false)}
+            >
+              <Text style={styles.modalButtonText}>Xong</Text>
+            </TouchableOpacity>
           </View>
+        </View>
+      </Modal>
 
-          <View style={styles.calendarContainer}>
+      {/* Calendar Modal */}
+      <Modal
+        visible={showCalendar}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCalendar(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.calendarModal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Chọn ngày</Text>
+              <TouchableOpacity onPress={() => setShowCalendar(false)}>
+                <Ionicons name="close" size={24} color={COLORS.GRAY} />
+              </TouchableOpacity>
+            </View>
             <Calendar
               onDayPress={onDayPress}
               markedDates={{
@@ -288,74 +527,56 @@ export default function RequestOrder({ navigation }) {
                 textDayHeaderFontWeight: "600",
               }}
             />
-          </View>
-
-          {selectedDate && !selectedTime && (
             <TouchableOpacity
-              style={styles.timeButton}
-              onPress={() => setShowTimePicker(true)}
-              activeOpacity={0.7}
+              style={styles.modalButton}
+              onPress={() => setShowCalendar(false)}
             >
-              <Ionicons name="time-outline" size={20} color={COLORS.WHITE} />
-              <Text style={styles.timeButtonText}>Chọn thời gian</Text>
+              <Text style={styles.modalButtonText}>Xong</Text>
             </TouchableOpacity>
-          )}
+          </View>
+        </View>
+      </Modal>
 
-          {selectedDate && selectedTime && (
-            <View style={styles.selectedDateTimeContainer}>
-              <Ionicons name="checkmark-circle" size={24} color={COLORS.SUCCESS} />
-              <View style={styles.selectedDateTimeText}>
-                <Text style={styles.selectedDateTimeLabel}>Đã chọn:</Text>
-                <Text style={styles.selectedDateTimeValue}>
-                  {new Date(selectedDate).toLocaleDateString("vi-VN")} - {selectedTime}
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => {
-                  setSelectedTime(null);
-                  setShowTimePicker(true);
-                }}
-              >
-                <Ionicons name="create-outline" size={20} color={COLORS.PRIMARY} />
+      {/* Time Picker */}
+      <Modal
+        visible={showTimePicker}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowTimePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Chọn giờ</Text>
+              <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                <Ionicons name="close" size={24} color={COLORS.GRAY} />
               </TouchableOpacity>
             </View>
-          )}
-
-          {showTimePicker && (
-            <DateTimePicker
-              value={selectedTime ? new Date(`2000-01-01T${selectedTime}`) : new Date()}
-              mode="time"
-              is24Hour={true}
-              display={Platform.OS === "ios" ? "spinner" : "default"}
-              onChange={onTimeChange}
-            />
-          )}
+            <View style={styles.pickerWrapper}>
+              <DateTimePicker
+                value={
+                  selectedTime
+                    ? new Date(`2000-01-01T${selectedTime}`)
+                    : new Date()
+                }
+                mode="time"
+                is24Hour={true}
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                textColor={COLORS.BLACK} // Thêm prop này để set màu text giờ/phút thành đen trên iOS spinner
+                accentColor={COLORS.PRIMARY} // Giữ accent cho selected item (có thể dùng PRIMARY để highlight)
+                onChange={(event, date) => onTimeChange(event, date)}
+                style={{ width: "100%" }}
+              />
+            </View>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setShowTimePicker(false)}
+            >
+              <Text style={styles.modalButtonText}>Xong</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-
-        {/* Submit Button */}
-        <TouchableOpacity
-          style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-          onPress={createOrder}
-          disabled={loading || !selectedStore || !selectedService || !selectedDate || !selectedTime}
-          activeOpacity={0.8}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color={COLORS.WHITE} />
-          ) : (
-            <>
-              <Ionicons name="calendar" size={24} color={COLORS.WHITE} />
-              <Text style={styles.submitButtonText}>Đặt lịch</Text>
-            </>
-          )}
-        </TouchableOpacity>
-
-        {/* Note */}
-        <Text style={styles.note}>
-          💡 Đến nơi thanh toán, hủy lịch không sao
-        </Text>
-
-        <View style={styles.bottomSpacing} />
-      </ScrollView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -392,19 +613,20 @@ const styles = StyleSheet.create({
     fontSize: FONTS.LARGE,
     fontWeight: "bold",
     color: COLORS.WHITE,
-    flex: 1,
-    textAlign: "center",
   },
-  placeholder: {
+  headerRight: {
     width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   container: {
     flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
   },
   scrollContent: {
     padding: SPACING.MEDIUM,
-    paddingBottom: SPACING.XLARGE,
   },
   loadingContainer: {
     flex: 1,
@@ -417,107 +639,118 @@ const styles = StyleSheet.create({
     fontSize: FONTS.REGULAR,
     color: COLORS.GRAY,
   },
-  section: {
-    marginBottom: SPACING.LARGE,
-  },
-  sectionHeader: {
+  progressBar: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: SPACING.MEDIUM,
-    gap: SPACING.SMALL,
+    justifyContent: "space-between",
+    marginBottom: SPACING.LARGE,
+    paddingHorizontal: SPACING.SMALL,
   },
-  stepNumber: {
+  progressStep: {
+    alignItems: "center",
+  },
+  progressCircle: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.PRIMARY,
+    backgroundColor: COLORS.GRAY,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: SPACING.TINY,
   },
-  stepNumberText: {
-    fontSize: FONTS.MEDIUM,
-    fontWeight: "bold",
+  progressCircleActive: {
+    backgroundColor: COLORS.PRIMARY,
+  },
+  progressCircleText: {
     color: COLORS.WHITE,
-  },
-  sectionTitle: {
-    fontSize: FONTS.LARGE,
     fontWeight: "bold",
+    fontSize: FONTS.SMALL,
+  },
+  progressLabel: {
+    fontSize: FONTS.SMALL,
     color: COLORS.TEXT,
+    textAlign: "center",
   },
-  pickerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.WHITE,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-    paddingHorizontal: SPACING.MEDIUM,
-    minHeight: 56,
-  },
-  pickerIcon: {
-    marginRight: SPACING.SMALL,
-  },
-  picker: {
+  progressLine: {
     flex: 1,
-    color: COLORS.TEXT,
+    height: 2,
+    backgroundColor: COLORS.GRAY,
+    marginHorizontal: SPACING.SMALL,
   },
-  calendarContainer: {
+  selectionCard: {
     backgroundColor: COLORS.WHITE,
     borderRadius: 16,
-    padding: SPACING.SMALL,
+    padding: SPACING.MEDIUM,
+    marginBottom: SPACING.MEDIUM,
     shadowColor: COLORS.BLACK,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
-    marginBottom: SPACING.MEDIUM,
   },
-  timeButton: {
+  cardContent: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.PRIMARY,
-    paddingVertical: SPACING.MEDIUM,
-    paddingHorizontal: SPACING.LARGE,
-    borderRadius: 12,
-    gap: SPACING.SMALL,
   },
-  timeButtonText: {
-    color: COLORS.WHITE,
-    fontSize: FONTS.REGULAR,
-    fontWeight: "bold",
-  },
-  selectedDateTimeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.WHITE,
-    borderRadius: 12,
-    padding: SPACING.MEDIUM,
-    borderWidth: 2,
-    borderColor: COLORS.SUCCESS,
-    gap: SPACING.SMALL,
-  },
-  selectedDateTimeText: {
+  cardText: {
     flex: 1,
+    marginLeft: SPACING.MEDIUM,
   },
-  selectedDateTimeLabel: {
-    fontSize: FONTS.SMALL,
-    color: COLORS.GRAY,
-    marginBottom: SPACING.TINY,
-  },
-  selectedDateTimeValue: {
-    fontSize: FONTS.REGULAR,
+  cardTitle: {
+    fontSize: FONTS.MEDIUM,
     fontWeight: "bold",
     color: COLORS.TEXT,
+    marginBottom: SPACING.TINY,
   },
-  submitButton: {
+  cardSubtitle: {
+    fontSize: FONTS.REGULAR,
+    color: COLORS.GRAY,
+  },
+  summaryCard: {
+    backgroundColor: `${COLORS.PRIMARY}05`,
+    borderRadius: 16,
+    padding: SPACING.MEDIUM,
+    marginBottom: SPACING.MEDIUM,
+    borderWidth: 1,
+    borderColor: `${COLORS.PRIMARY}20`,
+  },
+  summaryTitle: {
+    fontSize: FONTS.LARGE,
+    fontWeight: "bold",
+    color: COLORS.PRIMARY,
+    marginBottom: SPACING.MEDIUM,
+  },
+  summaryItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: SPACING.SMALL,
+  },
+  summaryLabel: {
+    fontSize: FONTS.REGULAR,
+    color: COLORS.TEXT,
+  },
+  summaryValue: {
+    fontSize: FONTS.REGULAR,
+    fontWeight: "500",
+    color: COLORS.PRIMARY,
+  },
+  bottomBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: COLORS.WHITE,
+    padding: SPACING.MEDIUM,
+    borderTopWidth: 1,
+    borderTopColor: "#E0E0E0",
+  },
+  actionButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: COLORS.PRIMARY,
     paddingVertical: SPACING.LARGE,
-    borderRadius: 16,
-    marginTop: SPACING.MEDIUM,
+    borderRadius: 12,
     gap: SPACING.SMALL,
     shadowColor: COLORS.PRIMARY,
     shadowOffset: { width: 0, height: 4 },
@@ -525,22 +758,100 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
-  submitButtonDisabled: {
-    opacity: 0.6,
+  actionButtonDisabled: {
+    opacity: 0.5,
   },
-  submitButtonText: {
+  actionButtonText: {
     color: COLORS.WHITE,
-    fontSize: FONTS.LARGE,
+    fontSize: FONTS.MEDIUM,
     fontWeight: "bold",
   },
-  note: {
-    fontSize: FONTS.SMALL,
-    color: COLORS.GRAY,
-    marginTop: SPACING.LARGE,
-    textAlign: "center",
-    fontStyle: "italic",
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  bottomSpacing: {
-    height: SPACING.LARGE,
+  modal: {
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 16,
+    margin: SPACING.MEDIUM,
+    width: "90%",
+    maxHeight: "70%",
+  },
+  calendarModal: {
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 16,
+    margin: SPACING.MEDIUM,
+    width: "90%",
+    maxHeight: "70%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: SPACING.MEDIUM,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+  },
+  modalTitle: {
+    fontSize: FONTS.LARGE,
+    fontWeight: "bold",
+    color: COLORS.TEXT,
+  },
+  pickerWrapper: {
+    padding: SPACING.MEDIUM,
+  },
+  pickerLabel: {
+    fontSize: FONTS.MEDIUM,
+    fontWeight: "bold",
+    color: COLORS.TEXT,
+    marginBottom: SPACING.SMALL,
+  },
+  pickerContainer: {
+    height: 200,
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  picker: {
+    color: COLORS.TEXT,
+  },
+  pickerItem: {
+    fontSize: FONTS.REGULAR,
+    color: COLORS.TEXT,
+    backgroundColor: COLORS.WHITE,
+  },
+  modalButton: {
+    backgroundColor: COLORS.PRIMARY,
+    paddingVertical: SPACING.MEDIUM,
+    borderRadius: 12,
+    margin: SPACING.MEDIUM,
+    alignItems: "center",
+  },
+  modalButtonText: {
+    color: COLORS.WHITE,
+    fontSize: FONTS.MEDIUM,
+    fontWeight: "bold",
+  },
+  modal: {
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 16,
+    margin: SPACING.MEDIUM,
+    width: "90%",
+    paddingBottom: SPACING.MEDIUM,
+    overflow: "hidden",
+  },
+  timePickerModal: {
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 16,
+    marginHorizontal: SPACING.MEDIUM,
+    width: "90%",
+    paddingBottom: SPACING.MEDIUM,
+    maxHeight: 300, // đủ cao cho DateTimePicker
+    overflow: "hidden",
+    justifyContent: "center",
   },
 });

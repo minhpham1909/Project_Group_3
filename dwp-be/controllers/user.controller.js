@@ -228,6 +228,8 @@ const requestRoleSupplier = async (req, res) => {
       roleRequestStatus: "pending",
     });
 
+    console.log(`User ${userId} requested to become a supplier. `);
+
     res.status(200).json({ message: "Request sent successfully" });
   } catch (error) {
     if (error.name === "CastError")

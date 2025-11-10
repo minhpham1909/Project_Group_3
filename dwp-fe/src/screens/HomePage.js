@@ -136,12 +136,12 @@ const HomeScreen = ({ navigation }) => {
               >
                 <Ionicons name="notifications-outline" size={28} color={COLORS.TEXT} />
               </TouchableOpacity>
-              <TouchableOpacity
+              {/* <TouchableOpacity
                 style={styles.iconButton}
                 onPress={() => navigation.navigate("Cart")}
               >
                 <Ionicons name="cart-outline" size={28} color={COLORS.TEXT} />
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </View>
           </View>
         </View>
