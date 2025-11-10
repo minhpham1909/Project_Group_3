@@ -44,6 +44,35 @@ export function ChatBot() {
     loadMessages();
   }, []);
 
+  // Scroll to bottom khi keyboard show/hide
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      "keyboardDidShow",
+      () => {
+        setTimeout(() => {
+          if (flatListRef.current) {
+            flatListRef.current.scrollToEnd({ animated: true });
+          }
+        }, 100);
+      }
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      "keyboardDidHide",
+      () => {
+        setTimeout(() => {
+          if (flatListRef.current) {
+            flatListRef.current.scrollToEnd({ animated: true });
+          }
+        }, 100);
+      }
+    );
+
+    return () => {
+      keyboardDidHideListener?.remove();
+      keyboardDidShowListener?.remove();
+    };
+  }, []);
+
   // Hàm hiển thị tin nhắn (cả của người dùng và AI)
   const displayMessage = (sender, message) => {
     const newMessage = {
@@ -128,13 +157,15 @@ export function ChatBot() {
       }
 
       const data = await response.json();
-      displayMessage("AI", data.message || data.response || "Xin lỗi, tôi không thể trả lời câu hỏi này.");
-    } catch (error) {
-      console.error("Error sending message to chatBot:", error);
       displayMessage(
         "AI",
-        "Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại sau."
+        data.message ||
+          data.response ||
+          "Xin lỗi, tôi không thể trả lời câu hỏi này."
       );
+    } catch (error) {
+      console.error("Error sending message to chatBot:", error);
+      displayMessage("AI", "Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại sau.");
     } finally {
       setIsLoading(false);
     }
@@ -144,13 +175,19 @@ export function ChatBot() {
     <View
       style={[
         styles.messageWrapper,
-        item.sender === "user" ? styles.userMessageWrapper : styles.botMessageWrapper,
+        item.sender === "user"
+          ? styles.userMessageWrapper
+          : styles.botMessageWrapper,
       ]}
     >
       {item.sender === "AI" && (
         <View style={styles.avatarContainer}>
           <View style={styles.botAvatar}>
-            <Ionicons name="chatbubble-ellipses" size={20} color={COLORS.WHITE} />
+            <Ionicons
+              name="chatbubble-ellipses"
+              size={20}
+              color={COLORS.WHITE}
+            />
           </View>
         </View>
       )}
@@ -188,16 +225,21 @@ export function ChatBot() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        enabled
+        behavior={Platform.OS === "ios" ? "padding" : "padding"}
         style={styles.container}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
         <View style={styles.headerContainer}>
           <View style={styles.headerContent}>
             <View style={styles.headerIcon}>
-              <Ionicons name="chatbubble-ellipses" size={28} color={COLORS.WHITE} />
+              <Ionicons
+                name="chatbubble-ellipses"
+                size={28}
+                color={COLORS.WHITE}
+              />
             </View>
             <View style={styles.headerTextContainer}>
               <Text style={styles.headerText}>SlayMe Brain</Text>
@@ -216,11 +258,18 @@ export function ChatBot() {
             {messages.length === 0 ? (
               <View style={styles.emptyState}>
                 <View style={styles.emptyIconContainer}>
-                  <Ionicons name="chatbubbles-outline" size={64} color={COLORS.GRAY} />
+                  <Ionicons
+                    name="chatbubbles-outline"
+                    size={64}
+                    color={COLORS.GRAY}
+                  />
                 </View>
-                <Text style={styles.emptyTitle}>Chào mừng đến SlayMe Brain! 👋</Text>
+                <Text style={styles.emptyTitle}>
+                  Chào mừng đến SlayMe Brain! 👋
+                </Text>
                 <Text style={styles.emptyText}>
-                  Tôi có thể giúp bạn tìm hiểu về dịch vụ, đặt lịch hẹn, và trả lời các câu hỏi của bạn.
+                  Tôi có thể giúp bạn tìm hiểu về dịch vụ, đặt lịch hẹn, và trả
+                  lời các câu hỏi của bạn.
                 </Text>
                 <Text style={styles.emptySubtext}>
                   Hãy bắt đầu cuộc trò chuyện bằng cách gửi tin nhắn!
@@ -238,7 +287,13 @@ export function ChatBot() {
                     flatListRef.current.scrollToEnd({ animated: true });
                   }
                 }}
+                onLayout={() => {
+                  if (flatListRef.current) {
+                    flatListRef.current.scrollToEnd({ animated: false });
+                  }
+                }}
                 showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
               />
             )}
 
