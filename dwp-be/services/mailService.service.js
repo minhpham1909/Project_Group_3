@@ -19,10 +19,10 @@ const sendEmail = async (recipientEmail, username, authCode, action) => {
 
   if (action === actions.FORGET_PASSWORD) {
     emailText = messages.MESSAGE001(username, authCode);
-    emailSubject = "Request to Reset Your Password by SlayMe-Team";  
+    emailSubject = "Request to Reset Your Password by StyleMe-Team";  
   }else if (action === actions.BOOKING_SERVICE) {
     emailText = messages.MESSAGE002(username, authCode);
-    emailSubject = "Booking Service Successfully by SlayMe-Team";  
+    emailSubject = "Booking Service Successfully by StyleMe-Team";  
   }
    else {
     emailText = messages.MESSAGE_ERROR;

@@ -10,20 +10,22 @@ Your password is: ${authCode}
 
 https://chgpwd.fpt.edu.vn
 Thank you.
-SlayMe-Team.
+StyleMe-Team.
   `,
 
-  MESSAGE002:(username, authCode) => `
+  MESSAGE002: (username, authCode) => `
     Hello, ${username}
-Chúc mừng! Bạn đã đặt thành công dịch vụ tại SlayMe !
+Chúc mừng! Bạn đã đặt thành công dịch vụ tại StyleMe !
 Thông tin chi tiết về lịch hẹn của bạn:
 - Lịch đặt: ${authCode.message}
 - Dịch vụ: ${authCode.service_name}
 - Cửa hàng: ${authCode.store_name}
-- Thời gian: ${authCode.date ? new Date(authCode.date).toLocaleString() : 'Chưa xác định'}  
-Chúng tôi rất mong được chào đón bạn tại SlayMe. Nếu có bất kỳ thay đổi nào về lịch hẹn, bạn vui lòng liên hệ với chúng tôi để điều chỉnh.
+- Thời gian: ${
+    authCode.date ? new Date(authCode.date).toLocaleString() : "Chưa xác định"
+  }  
+Chúng tôi rất mong được chào đón bạn tại StyleMe. Nếu có bất kỳ thay đổi nào về lịch hẹn, bạn vui lòng liên hệ với chúng tôi để điều chỉnh.
 
-Cảm ơn bạn đã lựa chọn sử dụng dịch vụ booking của SlayMe, hẹn gặp lại bạn sớm!`,
+Cảm ơn bạn đã lựa chọn sử dụng dịch vụ booking của StyleMe, hẹn gặp lại bạn sớm!`,
 
   MESSAGE_ERROR: "ERROR: Unknown action code.",
 };
