@@ -180,6 +180,43 @@ const deleteStore = async (req, res) => {
   }
 };
 
+const getService = async (req, res) => {
+  try {
+    const store = await storeModel.findOne({
+      "services._id": req.params.serviceId,
+    });
+
+    console.log(req.params.serviceId);
+
+    if (!store) {
+      return res.status(404).json({ message: "Service not found" });
+    }
+
+    // Lấy dịch vụ từ mảng services trong store
+    const service = store.services.find(
+      (s) => s._id.toString() === req.params.serviceId.toString()
+    );
+
+    if (!service) {
+      return res
+        .status(404)
+        .json({ message: "Service not found in the store" });
+    }
+
+    res.status(200).json({
+      serviceImage: store.image,
+      serviceName: service.service_name,
+      servicePrice: service.service_price,
+      storeNameName: store.nameShop,
+      storeAddress: store.address,
+      storeId: store._id,
+      serviceId: service._id,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // ==========================
 // Export tất cả
 // ==========================
@@ -190,4 +227,5 @@ module.exports = {
   createStore,
   updateStore,
   deleteStore,
+  getService,
 };

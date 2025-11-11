@@ -16,6 +16,7 @@ const upload = multer({ storage });
 router.get("/stores", StoreController.getAllStores);
 router.get("/stores/user/:userId", StoreController.getStoresByUserId);
 router.get("/store/:storeId", StoreController.getStoreById);
+router.get("/get-service/:serviceId", StoreController.getService);
 
 // Tạo store mới + upload ảnh
 router.post("/stores", upload.array("images", 5), StoreController.createStore);

@@ -239,31 +239,33 @@ const requestRoleSupplier = async (req, res) => {
 };
 
 // Admin duyệt hoặc từ chối
-const changeRequestSupplier = async (req, res) => {
+
+const getRequest = async (req, res) => {
   try {
-    const { roleRequestStatus } = req.body;
-    const userId = req.params.id;
-    const user = await userModel.findById(userId);
+    const user = await userModel.find({ roleRequestStatus: "pending" });
     if (!user) return res.status(404).json({ message: "User not found" });
-
-    const updateData = { roleRequestStatus };
-
-    if (roleRequestStatus === "approved") {
-      updateData.role = user.requestedRole || 2;
-    }
-
-    await userModel.findByIdAndUpdate(userId, updateData, { new: true });
-
-    res.status(200).json({
-      message:
-        roleRequestStatus === "approved"
-          ? "User promoted to supplier successfully"
-          : "Request status updated successfully",
-    });
+    res.status(200).json(user);
   } catch (error) {
     if (error.name === "CastError")
       res.status(400).json({ message: "Invalid user ID" });
     else res.status(500).json({ error: error.message });
+  }
+};
+
+const approveRequest = async (req, res) => {
+  try {
+    const { approved } = req.body;
+    const user = await userModel.findById(req.params.userId);
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.roleRequestStatus = approved ? "approved" : "rejected";
+    if (approved) user.role = 2; // trở thành nhà cung cấp
+    await user.save();
+
+    res.status(200).json({ message: "Request processed successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -274,5 +276,6 @@ module.exports = {
   getUserId,
   chatBot,
   requestRoleSupplier,
-  changeRequestSupplier,
+  getRequest,
+  approveRequest,
 };
