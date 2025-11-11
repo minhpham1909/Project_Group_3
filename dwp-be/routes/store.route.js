@@ -22,40 +22,56 @@ const upload = multer({ storage });
 const StoreController = require("../controllers/store.controller");
 
 // ==========================
-// STORE
+// STORE ROUTES
 // ==========================
 
 // Lấy tất cả cửa hàng
-router.get("/listStore", StoreController.getAllStore);
+router.get("/stores", StoreController.getAllStores);
 
-// Lấy store theo ownerId
-router.get("/:ownerId", StoreController.getStoreByUserId);
+// Lấy tất cả cửa hàng của 1 user
+router.get("/stores/user/:userId", StoreController.getStoresByUserId);
+
+// Lấy tất cả service của 1 store
+router.get("/stores/:storeId/services", StoreController.getServicesByStoreId);
+router.get("/store/:storeId", StoreController.getStoreById);
+
+// Lấy 1 service theo serviceId
+router.get("/services/:serviceId", StoreController.getServiceById);
 
 // Tạo store mới + upload ảnh
 router.post(
-  "/create-store",
+  "/stores",
   upload.array("images", 5), // max 5 ảnh
-  StoreController.createStoreWithImages
+  StoreController.createStore
 );
 
 // Cập nhật store + upload / xóa ảnh
 router.put(
-  "/update-store/:id",
+  "/stores/:storeId",
   upload.array("images", 5),
-  StoreController.updateStoreWithImages
+  StoreController.updateStore
 );
 
+// Xóa store
+router.delete("/stores/:storeId", StoreController.deleteStore);
+
 // ==========================
-// SERVICE
+// SERVICE ROUTES (trong store)
 // ==========================
 
-// Thêm dịch vụ vào store
-router.post("/create-service/:storeId", StoreController.insertSerivceInStore);
+// Thêm service vào store
+router.post("/stores/:storeId/services", StoreController.addServiceToStore);
 
-// Chỉnh sửa dịch vụ trong store
-router.put("/edit-service/:storeId", StoreController.editServiceInStore);
+// Cập nhật service trong store
+router.put(
+  "/stores/:storeId/services/:serviceId",
+  StoreController.updateServiceInStore
+);
 
-// Lấy dịch vụ theo serviceId
-router.get("/get-service/:serviceId", StoreController.getService);
+// Xóa service trong store
+router.delete(
+  "/stores/:storeId/services/:serviceId",
+  StoreController.deleteServiceInStore
+);
 
 module.exports = router;
