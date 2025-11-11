@@ -3,8 +3,6 @@ import { SafeAreaView, StyleSheet, Text } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
 import Tab_bar from "../components/Tab_bar";
-// import Booking_screen from "../screens/Booking_screen";
-// import Explore_screen from "../screens/Explore_screen";
 import SigninScreen from "../screens/Login";
 import HomePage from "../screens/HomePage";
 import ProfileStack from "../screens/Profile";
@@ -16,55 +14,68 @@ import OrderStore from "../screens/OrderStore";
 import CheckList from "../screens/CheckList";
 import ChatBot from "../screens/ChatBot";
 import CreateOrder from "../screens/CreateOrder";
-// import FieldDetailScreen from "../screens/FieldDetailScreen";
-// import FieldListScreen from "../screens/FieldListScreen";
-// import FieldAdminDetailScreen from "../screens/FieldAdminsDetail";
-// import Header from "../layout/Header";
-// import ManageAccount from "../screens/ManageAccount";
-// import AccountDetail from "../screens/AccountDetail";
-// import Dashboard from "../screens/Dashboard";
-import { ROUTER } from "../utils/constant";
-// import RentalEquipmentScreen from "../screens/RentalEquipmentScreen";
-// import EquipmentDetailScreen from "../screens/EquipmentDetailsScreen";
-// import TabScreen from "../components/Tab_Navigator";
-// import SportSelected from "../screens/SportSelected";
+import EditStore from "../screens/EditStore"; // ← Chỉ giữ EditStore
 import Notification from "../screens/Notification";
 import SupplierNotification from "../screens/SupplierNotification";
 import Test from "../screens/Test";
 import RegisterScreen from "../screens/RegisterScreen";
 import ProductDetail from "../screens/ProductDetail";
-// import ServiceOrderSchedule from "../screens/ServiceOrder";
 import RequestOrder from "../screens/RequestOrder";
 import { useSelector } from "react-redux";
-import { useEffect } from 'react';
-import { useNavigation } from '@react-navigation/native';
-// import EquipmentListScreen from "../screens/EquipmentList";
+import { useEffect } from "react";
+import { useNavigation } from "@react-navigation/native";
+import { ROUTER } from "../utils/constant";
+
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-// Đạt
+// HomeStack (giữ nguyên)
 function HomeStack() {
   return (
     <Stack.Navigator>
-      <Stack.Screen 
-        name="HomeScreen" 
-        component={HomePage} 
-        options={{ headerShown: false }} // Tắt header cho HomePage
+      <Stack.Screen
+        name="HomeScreen"
+        component={HomePage}
+        options={{ headerShown: false }}
       />
-      <Stack.Screen name="Notification" component={Notification} options={{ headerShown: false }} />
-      <Stack.Screen name="ProductDetail" component={ProductDetail} options={{ headerShown: false }} />
-      <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="RequestOrder" component={RequestOrder} options={{ headerShown: false }} />
-      <Stack.Screen name="CreateOrder" component={CreateOrder} options={{ headerShown: false }} />
-      <Stack.Screen name="SupplierNotification" component={SupplierNotification} options={{ headerShown: false }} />
+      <Stack.Screen
+        name="Notification"
+        component={Notification}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ProductDetail"
+        component={ProductDetail}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Cart"
+        component={CartScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="RequestOrder"
+        component={RequestOrder}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="CreateOrder"
+        component={CreateOrder}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="SupplierNotification"
+        component={SupplierNotification}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }
 
-
+// Main Tab (giữ nguyên)
 function Main() {
   const role = useSelector((state) => state.auth.user?.role);
-  
+
   return (
     <Tab.Navigator
       tabBar={(props) => <Tab_bar {...props} />}
@@ -90,21 +101,26 @@ function Main() {
         </>
       )}
 
-      {/* Đổi tên từ "Home" thành "HomeTab" để tránh xung đột */}
-      <Tab.Screen screenOptions={{ headerShown: false }} name="HomeTab" component={HomeStack} />
+      <Tab.Screen
+        screenOptions={{ headerShown: false }}
+        name="HomeTab"
+        component={HomeStack}
+      />
       <Tab.Screen name="ChatBot" component={ChatBot} />
       <Tab.Screen name="Profile" component={ProfileStack} />
     </Tab.Navigator>
   );
 }
 
+// RootNavigator (FIX: Chỉ thêm EditStore, bỏ StoreDetail và AddStore)
 function RootNavigator() {
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
+  const role = useSelector((state) => state.auth.user?.role); // Lấy role cho conditional
   const navigation = useNavigation();
 
   useEffect(() => {
     if (isLoggedIn) {
-      navigation.navigate("HomeTab"); // Điều hướng đến "HomeTab" thay vì "Home"
+      navigation.navigate("HomeTab");
     }
   }, [isLoggedIn, navigation]);
 
@@ -116,7 +132,23 @@ function RootNavigator() {
           <Stack.Screen name="Register" component={RegisterScreen} />
         </>
       ) : (
-        <Stack.Screen name="Main" component={Main}/>
+        <>
+          <Stack.Screen name="Main" component={Main} />
+          {/* ← THÊM CHỈ EDITSTORE VÀO ROOT STACK - accessible từ MyStore */}
+          {role === 2 && ( // Chỉ supplier (role 2) mới edit store
+            <Stack.Screen
+              name="EditStore"
+              component={EditStore} // ← Component tồn tại (imported ở đầu)
+              options={{
+                title: "Chỉnh sửa cửa hàng",
+                headerTintColor: "#000000",
+                headerBackTitle: "Quay lại",
+                headerStyle: { backgroundColor: "#FFFFFF" },
+              }}
+            />
+          )}
+          {/* Bỏ StoreDetail và AddStore để tránh lỗi reference */}
+        </>
       )}
     </Stack.Navigator>
   );
@@ -130,4 +162,3 @@ const styles = StyleSheet.create({
 });
 
 export default RootNavigator;
-

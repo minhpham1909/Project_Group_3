@@ -95,7 +95,7 @@ export default function Login({ navigation }) {
             <SLAYME width={180} height={80} />
           </View>
           <Text style={styles.title}>Chào mừng trở lại!</Text>
-          <Text style={styles.subtitle}>Đăng nhập để tiếp tục sử dụng SlayMe</Text>
+          <Text style={styles.subtitle}>Đăng nhập để tiếp tục sử dụng Style Me</Text>
         </View>
 
         <View style={styles.formContainer}>

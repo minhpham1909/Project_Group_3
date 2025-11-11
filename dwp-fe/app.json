@@ -18,7 +18,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Ứng dụng này cần quyền truy cập camera để chụp ảnh.",
         "NSLocationWhenInUseUsageDescription": "Ứng dụng này cần quyền truy cập vị trí của bạn để hiển thị vị trí trên bản đồ.",
-        "NSLocationAlwaysUsageDescription": "This app needs access to your location to show maps."
+        "NSLocationAlwaysUsageDescription": "This app needs access to your location to show maps.",
+        "NSPhotoLibraryUsageDescription": "Ứng dụng này cần quyền truy cập thư viện ảnh để chọn ảnh từ thư viện."
       }
     },
     "android": {

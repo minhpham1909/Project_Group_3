@@ -63,7 +63,7 @@ useEffect(() => {
 
   const getAllStore = async () => {
     try {
-      const response = await axios.get(`${API_ROOT}/store/listStore`);
+      const response = await axios.get(`${API_ROOT}/store/stores`);
       setStores(response.data || []);
       setFilteredStores(response.data || []);
     } catch (error) {
