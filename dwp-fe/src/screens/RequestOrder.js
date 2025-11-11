@@ -41,7 +41,7 @@ export default function RequestOrder({ navigation }) {
   const getAllStore = async () => {
     try {
       setStoresLoading(true);
-      const response = await axios.get(`${API_ROOT}/store/listStore`);
+      const response = await axios.get(`${API_ROOT}/store/stores`);
       console.log("Stores data:", response.data); // Log để kiểm tra dữ liệu
       setStores(response.data || []);
       if (response.data && response.data.length > 0) {

@@ -58,6 +58,8 @@ const ProductDetail = ({ route, navigation }) => {
           `${API_ROOT}/store/get-service/${serviceId}`
         );
 
+        console.log("Product data:", response.data);
+
         if (response.status === 200) {
           setProduct(response.data); // Lưu sản phẩm vào state
           if (response.data.storeAddress) {
@@ -262,7 +264,7 @@ const ProductDetail = ({ route, navigation }) => {
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Cửa hàng</Text>
                   <Text style={styles.infoValue}>
-                    {product.storeName || "Chưa cập nhật"}
+                    {product.storeNameName || "Chưa cập nhật"}
                   </Text>
                 </View>
               </View>

@@ -84,8 +84,8 @@ function Main() {
     >
       {role === 1 && (
         <>
-          {/* <Tab.Screen name="Test" component={Test} />
-          <Tab.Screen name="Map" component={MapView} /> */}
+          <Tab.Screen name="Test" component={Test} />
+          {/* <Tab.Screen name="Map" component={MapView} /> */}
         </>
       )}
 
