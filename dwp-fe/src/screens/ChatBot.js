@@ -242,7 +242,7 @@ export function ChatBot() {
               />
             </View>
             <View style={styles.headerTextContainer}>
-              <Text style={styles.headerText}>SlayMe Brain</Text>
+              <Text style={styles.headerText}>StyleMe Brain</Text>
               <Text style={styles.headerSubtext}>Trợ lý ảo thông minh</Text>
             </View>
           </View>
@@ -265,7 +265,7 @@ export function ChatBot() {
                   />
                 </View>
                 <Text style={styles.emptyTitle}>
-                  Chào mừng đến SlayMe Brain! 👋
+                  Chào mừng đến StyleMe Brain! 👋
                 </Text>
                 <Text style={styles.emptyText}>
                   Tôi có thể giúp bạn tìm hiểu về dịch vụ, đặt lịch hẹn, và trả
