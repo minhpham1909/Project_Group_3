@@ -1,6 +1,6 @@
 const storeModel = require("../models/store.model");
 const cloudinary = require("cloudinary").v2;
-const fs = require("fs");
+const streamifier = require("streamifier");
 
 // Cấu hình Cloudinary
 cloudinary.config({
@@ -36,35 +36,15 @@ const getStoresByUserId = async (req, res) => {
 };
 
 // ==========================
-// 🟢 LẤY TẤT CẢ SERVICE CỦA 1 CỬA HÀNG
+// 🟢 LẤY 1 CỬA HÀNG THEO ID
 // ==========================
-const getServicesByStoreId = async (req, res) => {
+const getStoreById = async (req, res) => {
   try {
     const store = await storeModel.findById(req.params.storeId);
     if (!store) return res.status(404).json({ message: "Store not found" });
-    res.status(200).json({ services: store.services });
+    res.json(store);
   } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// ==========================
-// 🟢 LẤY 1 SERVICE THEO ID
-// ==========================
-const getServiceById = async (req, res) => {
-  try {
-    const store = await storeModel.findOne({
-      "services._id": req.params.serviceId,
-    });
-    if (!store) return res.status(404).json({ message: "Service not found" });
-
-    const service = store.services.find(
-      (s) => s._id.toString() === req.params.serviceId.toString()
-    );
-
-    res.status(200).json({ service, storeId: store._id });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -80,13 +60,22 @@ const createStore = async (req, res) => {
         .status(400)
         .json({ message: "Please upload at least 1 image" });
 
+    // Upload trực tiếp từ buffer
     const uploadResults = await Promise.all(
-      req.files.map((file) =>
-        cloudinary.uploader.upload(file.path, { folder: "stores" })
+      req.files.map(
+        (file) =>
+          new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+              { folder: "stores" },
+              (err, result) => {
+                if (err) reject(err);
+                else resolve(result);
+              }
+            );
+            streamifier.createReadStream(file.buffer).pipe(stream);
+          })
       )
     );
-
-    req.files.forEach((f) => fs.unlinkSync(f.path));
 
     const imageUrls = uploadResults.map((r) => r.secure_url);
 
@@ -115,11 +104,6 @@ const updateStore = async (req, res) => {
     const storeId = req.params.storeId;
     const { nameShop, address, services, removeImages } = req.body;
 
-   console.log("Body:", req.body); // Check nameShop, services, removeImages
-   console.log("Files:", req.files); // ← QUAN TRỌNG: Array files? Paths?
-   console.log("New images count:", req.files ? req.files.length : 0);
-
-
     const store = await storeModel.findById(storeId);
     if (!store) return res.status(404).json({ message: "Store not found" });
 
@@ -137,14 +121,23 @@ const updateStore = async (req, res) => {
       updatedImages = updatedImages.filter((url) => !removeList.includes(url));
     }
 
-    // Upload ảnh mới
+    // Upload ảnh mới trực tiếp từ buffer
     if (req.files && req.files.length > 0) {
       const uploadResults = await Promise.all(
-        req.files.map((file) =>
-          cloudinary.uploader.upload(file.path, { folder: "stores" })
+        req.files.map(
+          (file) =>
+            new Promise((resolve, reject) => {
+              const stream = cloudinary.uploader.upload_stream(
+                { folder: "stores" },
+                (err, result) => {
+                  if (err) reject(err);
+                  else resolve(result);
+                }
+              );
+              streamifier.createReadStream(file.buffer).pipe(stream);
+            })
         )
       );
-      req.files.forEach((f) => fs.unlinkSync(f.path));
       const newUrls = uploadResults.map((r) => r.secure_url);
       updatedImages = [...updatedImages, ...newUrls];
     }
@@ -168,18 +161,6 @@ const updateStore = async (req, res) => {
   }
 };
 
-const getStoreById = async (req, res) => {
-  try {
-    const { storeId } = req.params;
-    const store = await storeModel.findById(storeId);
-    if (!store) return res.status(404).json({ message: "Store not found" });
-    res.json(store);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
-  }
-};
-
 // ==========================
 // 🟢 XÓA CỬA HÀNG
 // ==========================
@@ -188,7 +169,6 @@ const deleteStore = async (req, res) => {
     const store = await storeModel.findByIdAndDelete(req.params.storeId);
     if (!store) return res.status(404).json({ message: "Store not found" });
 
-    // Xóa ảnh trên Cloudinary
     for (const url of store.image) {
       const publicId = url.split("/").pop().split(".")[0];
       await cloudinary.uploader.destroy(`stores/${publicId}`);
@@ -201,96 +181,13 @@ const deleteStore = async (req, res) => {
 };
 
 // ==========================
-// 🟢 THÊM SERVICE VÀO STORE
-// ==========================
-const addServiceToStore = async (req, res) => {
-  try {
-    const store = await storeModel.findById(req.params.storeId);
-    if (!store) return res.status(404).json({ message: "Store not found" });
-
-    const { services } = req.body;
-    if (!services || services.length === 0)
-      return res.status(400).json({ message: "No services provided" });
-
-    store.services.push(...services);
-    await store.save();
-    res.status(200).json({
-      message: "Services added successfully",
-      services: store.services,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// ==========================
-// 🟢 CẬP NHẬT SERVICE TRONG STORE
-// ==========================
-const updateServiceInStore = async (req, res) => {
-  try {
-    const store = await storeModel.findById(req.params.storeId);
-    if (!store) return res.status(404).json({ message: "Store not found" });
-
-    const { _id, service_name, service_price, slot_service } = req.body;
-    if (
-      !_id ||
-      !service_name ||
-      service_price === undefined ||
-      slot_service === undefined
-    )
-      return res.status(400).json({ message: "Missing service info" });
-
-    const service = store.services.find(
-      (s) => s._id.toString() === _id.toString()
-    );
-    if (!service) return res.status(404).json({ message: "Service not found" });
-
-    service.service_name = service_name;
-    service.service_price = service_price;
-    service.slot_service = slot_service;
-
-    await store.save();
-    res.status(200).json({ message: "Service updated successfully", service });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// ==========================
-// 🟢 XÓA SERVICE TRONG STORE
-// ==========================
-const deleteServiceInStore = async (req, res) => {
-  try {
-    const store = await storeModel.findById(req.params.storeId);
-    if (!store) return res.status(404).json({ message: "Store not found" });
-
-    const serviceIndex = store.services.findIndex(
-      (s) => s._id.toString() === req.params.serviceId.toString()
-    );
-    if (serviceIndex === -1)
-      return res.status(404).json({ message: "Service not found" });
-
-    store.services.splice(serviceIndex, 1);
-    await store.save();
-    res.status(200).json({ message: "Service deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// ==========================
 // Export tất cả
 // ==========================
 module.exports = {
   getAllStores,
   getStoresByUserId,
-  getServicesByStoreId,
-  getServiceById,
+  getStoreById,
   createStore,
   updateStore,
   deleteStore,
-  addServiceToStore,
-  updateServiceInStore,
-  deleteServiceInStore,
-  getStoreById,
 };
