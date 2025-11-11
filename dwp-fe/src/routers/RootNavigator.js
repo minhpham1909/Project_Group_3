@@ -14,7 +14,8 @@ import OrderStore from "../screens/OrderStore";
 import CheckList from "../screens/CheckList";
 import ChatBot from "../screens/ChatBot";
 import CreateOrder from "../screens/CreateOrder";
-import EditStore from "../screens/EditStore"; // ← Chỉ giữ EditStore
+import EditStore from "../screens/EditStore";
+import CreateStore from "../screens/CreateStore";
 import Notification from "../screens/Notification";
 import SupplierNotification from "../screens/SupplierNotification";
 import Test from "../screens/Test";
@@ -24,7 +25,7 @@ import RequestOrder from "../screens/RequestOrder";
 import { useSelector } from "react-redux";
 import { useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
-import { ROUTER } from "../utils/constant";
+import { COLORS, ROUTER } from "../utils/constant";
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -112,7 +113,6 @@ function Main() {
   );
 }
 
-// RootNavigator (FIX: Chỉ thêm EditStore, bỏ StoreDetail và AddStore)
 function RootNavigator() {
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
   const role = useSelector((state) => state.auth.user?.role); // Lấy role cho conditional
@@ -134,13 +134,24 @@ function RootNavigator() {
       ) : (
         <>
           <Stack.Screen name="Main" component={Main} />
-          {/* ← THÊM CHỈ EDITSTORE VÀO ROOT STACK - accessible từ MyStore */}
           {role === 2 && ( // Chỉ supplier (role 2) mới edit store
             <Stack.Screen
               name="EditStore"
               component={EditStore} // ← Component tồn tại (imported ở đầu)
               options={{
                 title: "Chỉnh sửa cửa hàng",
+                headerTintColor: COLORS.PRIMARY,
+                headerBackTitle: "Quay lại",
+                headerStyle: { backgroundColor: COLORS.PRIMARY },
+              }}
+            />
+          )}
+          {role === 2 && ( // Chỉ supplier (role 2) mới tạo cửa hàng
+            <Stack.Screen
+              name="CreateStore"
+              component={CreateStore} // ← Component tồn tại (imported ở đầu)
+              options={{
+                title: "Tạo cửa hàng",
                 headerTintColor: "#000000",
                 headerBackTitle: "Quay lại",
                 headerStyle: { backgroundColor: "#FFFFFF" },

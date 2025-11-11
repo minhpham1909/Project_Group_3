@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -19,47 +19,16 @@ import axios from "axios";
 import { useSelector } from "react-redux";
 import { API_ROOT, COLORS } from "../utils/constant";
 
-const EditStore = ({ route, navigation }) => {
-  const { storeId } = route.params;
+const CreateStore = ({ navigation }) => {
   const user = useSelector((state) => state.auth.user);
-
-  const [store, setStore] = useState(null);
   const [nameShop, setNameShop] = useState("");
   const [address, setAddress] = useState("");
-  const [images, setImages] = useState([]);
-  const [newImages, setNewImages] = useState([]);
-  const [removedImages, setRemovedImages] = useState([]);
-
-  const [services, setServices] = useState([]);
-  const [showNewServiceForm, setShowNewServiceForm] = useState(false);
+  const [newImages, setNewImages] = useState([]); // Array of { uri, type }
+  const [services, setServices] = useState([]); // Array of {service_name, service_price, slot_service}
   const [newServiceName, setNewServiceName] = useState("");
   const [newServicePrice, setNewServicePrice] = useState("");
   const [newServiceSlot, setNewServiceSlot] = useState("");
-
-  const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-
-  useEffect(() => {
-    fetchStore();
-  }, []);
-
-  const fetchStore = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(`${API_ROOT}/store/store/${storeId}`);
-      const storeData = response.data;
-      setStore(storeData);
-      setNameShop(storeData.nameShop);
-      setAddress(storeData.address);
-      setImages(storeData.image || []);
-      setServices(storeData.services || []);
-    } catch (error) {
-      console.error("Lỗi khi lấy dữ liệu cửa hàng:", error);
-      Alert.alert("Lỗi", "Không thể tải dữ liệu cửa hàng.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const openAppSettings = () => {
     const url = Platform.OS === "ios" ? "app-settings:" : "settings:";
@@ -69,42 +38,83 @@ const EditStore = ({ route, navigation }) => {
   };
 
   const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status === "granted") {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 1,
-      });
-      if (!result.canceled) {
-        setNewImages([...newImages, result.assets[0].uri]);
+    if (newImages.length >= 5) {
+      Alert.alert("Giới hạn", "Chỉ được thêm tối đa 5 ảnh.");
+      return;
+    }
+    console.log("Button pressed - Starting pickImage");
+    try {
+      const { status, accessPrivileges } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      console.log("Full permission response:", { status, accessPrivileges });
+
+      if (status === "granted") {
+        if (accessPrivileges !== "all") {
+          Alert.alert(
+            "Quyền hạn chế",
+            "Bạn chỉ có quyền limited. Vui lòng cấp full access trong Settings > App > Photos để mở đầy đủ gallery.",
+            [{ text: "OK", onPress: openAppSettings }]
+          );
+          return;
+        }
+
+        console.log("Full access - Launching image picker");
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: false,
+          aspect: [4, 3],
+          quality: 0.8,
+        });
+
+        console.log("Picker result:", JSON.stringify(result, null, 2));
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          const pickerUri = result.assets[0].uri;
+          console.log("Selected URI:", pickerUri);
+          setNewImages([
+            ...newImages,
+            { uri: pickerUri, type: result.assets[0].type || "image/jpeg" },
+          ]);
+          Alert.alert("Thành công", "Đã chọn ảnh!");
+        } else {
+          console.log("Picker canceled or no assets");
+        }
+
+        if (Platform.OS === "android") {
+          const pending = await ImagePicker.getPendingResultAsync();
+          if (pending) {
+            console.log("Pending result:", pending);
+          }
+        }
+      } else if (status === "denied") {
+        Alert.alert(
+          "Quyền bị từ chối",
+          "Ứng dụng cần quyền truy cập thư viện ảnh. Vui lòng cấp quyền trong Cài đặt > Quyền riêng tư > Thư viện ảnh.",
+          [{ text: "Hủy" }, { text: "Mở Cài đặt", onPress: openAppSettings }]
+        );
+      } else {
+        Alert.alert(
+          "Quyền truy cập cần thiết",
+          "Cần quyền truy cập thư viện ảnh để chọn ảnh. Vui lòng cấp quyền."
+        );
       }
-    } else {
-      Alert.alert(
-        "Quyền bị từ chối",
-        "Ứng dụng cần quyền truy cập thư viện ảnh. Vui lòng cấp quyền trong Cài đặt.",
-        [{ text: "Hủy" }, { text: "Mở Cài đặt", onPress: openAppSettings }]
-      );
+    } catch (error) {
+      console.error("Error in pickImage:", error);
+      Alert.alert("Lỗi", `Không thể mở thư viện ảnh: ${error.message}`);
     }
   };
 
-  const removeImage = (index, isNew = false) => {
-    if (isNew) {
-      setNewImages(newImages.filter((_, i) => i !== index));
-    } else {
-      Alert.alert("Xóa ảnh", "Ảnh này sẽ được xóa khi cập nhật?", [
-        { text: "Hủy" },
-        {
-          text: "Xóa",
-          onPress: () => {
-            const removedUrl = images[index];
-            setRemovedImages([...removedImages, removedUrl]);
-            setImages(images.filter((_, i) => i !== index));
-          },
+  const removeImage = (index) => {
+    Alert.alert("Xóa ảnh", "Bạn có chắc chắn muốn xóa ảnh này?", [
+      { text: "Hủy" },
+      {
+        text: "Xóa",
+        onPress: () => {
+          const updatedImages = newImages.filter((_, i) => i !== index);
+          setNewImages(updatedImages);
         },
-      ]);
-    }
+      },
+    ]);
   };
 
   const addNewService = () => {
@@ -125,7 +135,6 @@ const EditStore = ({ route, navigation }) => {
     setNewServiceName("");
     setNewServicePrice("");
     setNewServiceSlot("");
-    setShowNewServiceForm(false);
     Alert.alert("Thành công", "Đã thêm dịch vụ mới!");
   };
 
@@ -135,7 +144,8 @@ const EditStore = ({ route, navigation }) => {
       {
         text: "Xóa",
         onPress: () => {
-          setServices(services.filter((_, i) => i !== index));
+          const newServices = services.filter((_, i) => i !== index);
+          setServices(newServices);
         },
       },
     ]);
@@ -143,78 +153,107 @@ const EditStore = ({ route, navigation }) => {
 
   const updateService = (index, field, value) => {
     const newServices = [...services];
-    if (field === "name") newServices[index].service_name = value;
-    if (field === "price")
+    if (field === "name") {
+      newServices[index].service_name = value;
+    } else if (field === "price") {
       newServices[index].service_price = parseFloat(value) || 0;
-    if (field === "slot")
+    } else if (field === "slot") {
       newServices[index].slot_service = parseFloat(value) || 0;
+    }
     setServices(newServices);
   };
 
-  const updateStore = async () => {
+  const createStore = async () => {
     if (!nameShop || !address) {
-      Alert.alert("Lỗi", "Vui lòng điền đầy đủ thông tin.");
+      Alert.alert("Lỗi", "Vui lòng điền tên cửa hàng và địa chỉ.");
       return;
     }
+    if (newImages.length === 0) {
+      Alert.alert("Lỗi", "Vui lòng thêm ít nhất 1 ảnh.");
+      return;
+    }
+    if (user?.id === undefined) {
+      Alert.alert("Lỗi", "Không tìm thấy thông tin người dùng.");
+      return;
+    }
+
+    console.log("Starting create - New images URIs:", newImages);
     setUpdating(true);
     try {
       const formData = new FormData();
       formData.append("nameShop", nameShop);
       formData.append("address", address);
+      formData.append("ownerId", user.id); // Assume user._id
       formData.append("services", JSON.stringify(services));
 
-      if (removedImages.length > 0) {
-        formData.append("removeImages", JSON.stringify(removedImages));
+      // Append images
+      newImages.forEach((imageObj, index) => {
+        let rawUri = imageObj.uri;
+        let mimeType = imageObj.type || "image/jpeg";
+
+        let fixedUri = rawUri;
+        if (
+          !fixedUri.startsWith("file://") &&
+          !fixedUri.startsWith("content://")
+        ) {
+          fixedUri = `file://${fixedUri}`;
+        }
+        if (Platform.OS === "ios" && fixedUri.startsWith("file:///var/")) {
+          fixedUri = fixedUri;
+        } else if (
+          Platform.OS === "android" &&
+          fixedUri.startsWith("/storage/")
+        ) {
+          fixedUri = `file://${fixedUri}`;
+        }
+
+        const fileName = rawUri.split("/").pop() || `image${index}.jpg`;
+
+        const file = {
+          uri: fixedUri,
+          type: mimeType,
+          name: fileName,
+        };
+        formData.append("images", file);
+        console.log(
+          `Appended file ${index}: uri=${fixedUri.substring(
+            0,
+            50
+          )}..., type=${mimeType}, name=${fileName}`
+        );
+      });
+
+      console.log("FormData keys:");
+      for (let [key, value] of formData.entries()) {
+        const valPreview =
+          typeof value === "object"
+            ? `[File: ${value.uri || value.name}]`
+            : value.toString().substring(0, 50) + "...";
+        console.log(`${key}: ${valPreview}`);
       }
 
-      for (let i = 0; i < newImages.length; i++) {
-        let uri = newImages[i];
-        const filename = uri.split("/").pop();
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : `image/jpeg`;
-        formData.append("images", {
-          uri: Platform.OS === "ios" ? uri.replace("file://", "") : uri,
-          type,
-          name: filename,
-        });
-      }
-
-      const response = await axios.put(
-        `${API_ROOT}/store/stores/${storeId}`,
-        formData
-      );
-      if (response.data) {
-        Alert.alert("Thành công", "Cập nhật cửa hàng thành công!");
-       navigation.goBack({ refresh: true });
+      const response = await axios.post(`${API_ROOT}/store/stores`, formData, {
+        headers: {
+          // Không set Content-Type để Axios tự handle
+        },
+      });
+      console.log("BE Response:", response.data);
+      if (response.data && response.data.store) {
+        Alert.alert("Thành công", "Tạo cửa hàng thành công!");
+        navigation.goBack();
       }
     } catch (error) {
-      console.error("Lỗi khi cập nhật cửa hàng:", error);
-      Alert.alert("Lỗi", `Không thể cập nhật cửa hàng: ${error.message}`);
+      console.error("Create error full:", error.response?.data || error);
+      Alert.alert(
+        "Lỗi",
+        `Tạo cửa hàng thất bại: ${error.response?.data?.error || error.message}`
+      );
     } finally {
       setUpdating(false);
     }
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4A90E2" />
-          <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!store) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.errorText}>Không tìm thấy cửa hàng</Text>
-      </SafeAreaView>
-    );
-  }
-
-  const renderServiceCard = (item, index) => (
+  const renderServiceCard = ({ item, index }) => (
     <View style={styles.serviceCard} key={`service-${index}`}>
       <View style={styles.serviceRow}>
         <View style={styles.serviceField}>
@@ -256,22 +295,18 @@ const EditStore = ({ route, navigation }) => {
     </View>
   );
 
-  const allImages = [...images, ...newImages];
-  const renderImageItem = (item, index) => {
-    const isNew = index >= images.length;
-    const realIndex = isNew ? index - images.length : index;
-    return (
-      <View style={styles.imageWrapper} key={`img-${index}`}>
-        <Image source={{ uri: item }} style={styles.image} />
-        <TouchableOpacity
-          style={styles.removeImageOverlay}
-          onPress={() => removeImage(realIndex, isNew)}
-        >
-          <Ionicons name="close-circle" size={24} color="#FF6B6B" />
-        </TouchableOpacity>
-      </View>
-    );
-  };
+  const allImages = newImages.map((imgObj) => imgObj.uri);
+  const renderImageItem = (item, index) => (
+    <View style={styles.imageWrapper} key={`img-${index}`}>
+      <Image source={{ uri: item }} style={styles.image} />
+      <TouchableOpacity
+        style={styles.removeImageOverlay}
+        onPress={() => removeImage(index)}
+      >
+        <Ionicons name="close-circle" size={24} color="#FF6B6B" />
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -282,14 +317,13 @@ const EditStore = ({ route, navigation }) => {
         >
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Chỉnh sửa cửa hàng</Text>
+        <Text style={styles.headerTitle}>Tạo cửa hàng mới</Text>
         <View style={styles.headerSpacer} />
       </View>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
       >
-        {/* Thông tin cơ bản */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Thông tin cơ bản</Text>
           <View style={styles.inputGroup}>
@@ -314,25 +348,30 @@ const EditStore = ({ route, navigation }) => {
           </View>
         </View>
 
-        {/* Hình ảnh */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Hình ảnh</Text>
-            <TouchableOpacity style={styles.addImageButton} onPress={pickImage}>
+            <Text style={styles.cardTitle}>Hình ảnh (Tối đa 5)</Text>
+            <TouchableOpacity
+              style={styles.addImageButton}
+              onPress={pickImage}
+              disabled={newImages.length >= 5}
+            >
               <Ionicons name="add-circle-outline" size={24} color="#4A90E2" />
               <Text style={styles.addImageText}>Thêm ảnh</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.imageGrid}>{allImages.map(renderImageItem)}</View>
+          {newImages.length === 0 && (
+            <Text style={styles.helperText}>Vui lòng thêm ít nhất 1 ảnh.</Text>
+          )}
         </View>
 
-        {/* Dịch vụ */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Dịch vụ</Text>
             <TouchableOpacity
               style={styles.addServiceButton}
-              onPress={() => setShowNewServiceForm(true)}
+              onPress={() => setNewServiceName("")} // Show form
             >
               <Ionicons name="add" size={20} color="#4A90E2" />
               <Text style={styles.addServiceText}>Thêm dịch vụ mới</Text>
@@ -341,9 +380,7 @@ const EditStore = ({ route, navigation }) => {
           <View style={styles.servicesList}>
             {services.map(renderServiceCard)}
           </View>
-
-          {/* Form thêm dịch vụ mới */}
-          {showNewServiceForm && (
+          {newServiceName || newServicePrice || newServiceSlot ? (
             <View style={styles.newServiceForm}>
               <Text style={styles.formTitle}>Thêm dịch vụ mới</Text>
               <View style={styles.inputGroup}>
@@ -379,22 +416,21 @@ const EditStore = ({ route, navigation }) => {
                 style={styles.addButton}
                 onPress={addNewService}
               >
-                <Text style={styles.addButtonText}>Xác nhận thêm</Text>
+                <Text style={styles.addButtonText}>Thêm</Text>
               </TouchableOpacity>
             </View>
-          )}
+          ) : null}
         </View>
 
-        {/* Button cập nhật */}
         <TouchableOpacity
           style={[styles.updateButton, updating && styles.updateButtonDisabled]}
-          onPress={updateStore}
+          onPress={createStore}
           disabled={updating}
         >
           {updating ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={styles.updateButtonText}>Cập nhật cửa hàng</Text>
+            <Text style={styles.updateButtonText}>Tạo cửa hàng</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -403,20 +439,36 @@ const EditStore = ({ route, navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8F9FA" },
+  container: {
+    flex: 1,
+    backgroundColor: "#F8F9FA",
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: COLORS.PRIMARY,
+    backgroundColor: "#4A90E2",
   },
-  backButton: { padding: 8 },
-  headerTitle: { fontSize: 18, fontWeight: "600", color: "#FFFFFF" },
-  headerSpacer: { width: 32 },
-  scrollView: { flex: 1 },
-  content: { padding: 16, paddingBottom: 32 },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  headerSpacer: {
+    width: 32,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    padding: 16,
+    paddingBottom: 32,
+  },
   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
@@ -434,9 +486,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
   },
-  cardTitle: { fontSize: 18, fontWeight: "600", color: "#2C3E50" },
-  label: { fontSize: 14, fontWeight: "500", color: "#34495E", marginBottom: 4 },
-  inputGroup: { marginBottom: 16 },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#2C3E50",
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#34495E",
+    marginBottom: 4,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
   textInput: {
     borderWidth: 1,
     borderColor: "#E1E8ED",
@@ -446,8 +509,14 @@ const styles = StyleSheet.create({
     color: "#2C3E50",
     backgroundColor: "#FFFFFF",
   },
-  multilineInput: { height: 80, textAlignVertical: "top" },
-  addImageButton: { flexDirection: "row", alignItems: "center" },
+  multilineInput: {
+    height: 80,
+    textAlignVertical: "top",
+  },
+  addImageButton: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   addImageText: {
     marginLeft: 4,
     fontSize: 14,
@@ -479,6 +548,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     elevation: 2,
   },
+  helperText: {
+    fontSize: 14,
+    color: "#7F8C8D",
+    textAlign: "center",
+    marginTop: 8,
+  },
   serviceCard: {
     backgroundColor: "#F8F9FA",
     borderRadius: 8,
@@ -486,8 +561,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     position: "relative",
   },
-  serviceRow: { flexDirection: "row", justifyContent: "space-between" },
-  serviceField: { flex: 1, marginRight: 8 },
+  serviceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  serviceField: {
+    flex: 1,
+    marginRight: 8,
+  },
   fieldLabel: {
     fontSize: 12,
     fontWeight: "500",
@@ -514,16 +595,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  servicesList: { marginBottom: 12 },
-  addServiceButton: { flexDirection: "row", alignItems: "center" },
+  servicesList: {
+    marginBottom: 12,
+  },
+  addServiceButton: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   addServiceText: {
     marginLeft: 4,
     fontSize: 14,
-    color: COLORS.PRIMARY,
+    color: "#4A90E2",
     fontWeight: "500",
   },
   newServiceForm: {
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#E8F4FD",
     borderRadius: 8,
     padding: 12,
     marginTop: 8,
@@ -535,31 +621,32 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   addButton: {
-    backgroundColor: COLORS.PRIMARY,
+    backgroundColor: "#4A90E2",
     borderRadius: 8,
     padding: 12,
     alignItems: "center",
     marginTop: 8,
   },
-  addButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
+  addButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
   updateButton: {
-    backgroundColor: COLORS.PRIMARY,
+    backgroundColor: "#4A90E2",
     borderRadius: 8,
     padding: 16,
     alignItems: "center",
     marginTop: 8,
   },
-  updateButtonDisabled: { backgroundColor: COLORS.PRIMARY },
-  updateButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  loadingText: { marginTop: 12, fontSize: 16, color: "#7F8C8D" },
-  errorText: {
-    flex: 1,
-    textAlign: "center",
-    justifyContent: "center",
+  updateButtonDisabled: {
+    backgroundColor: "#AED6F1",
+  },
+  updateButtonText: {
+    color: "#FFFFFF",
     fontSize: 16,
-    color: "#E74C3C",
+    fontWeight: "600",
   },
 });
 
-export default EditStore;
+export default CreateStore;

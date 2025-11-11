@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
   Text,
@@ -14,16 +14,13 @@ import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import { useSelector } from "react-redux";
 import { API_ROOT, COLORS } from "../utils/constant";
+import { useFocusEffect } from "@react-navigation/native";
 
 const MyStore = ({ navigation }) => {
   const user = useSelector((state) => state.auth.user);
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  useEffect(() => {
-    getAllStores();
-  }, []);
 
   const getAllStores = async () => {
     try {
@@ -39,6 +36,18 @@ const MyStore = ({ navigation }) => {
     }
   };
 
+  // Load ban đầu khi mount
+  useEffect(() => {
+    getAllStores();
+  }, []); // Giữ nguyên
+
+  // Thêm useFocusEffect để refresh khi focus (sau goBack)
+  useFocusEffect(
+    useCallback(() => {
+      getAllStores(); // Gọi refresh khi focus
+    }, []) // Dependency rỗng để chỉ chạy khi focus, không phụ thuộc state
+  );
+
   const onRefresh = async () => {
     setRefreshing(true);
     await getAllStores();
@@ -50,7 +59,7 @@ const MyStore = ({ navigation }) => {
   };
 
   const editStore = (storeId) => {
-    navigation.navigate("EditStore", { storeId }); // ← ĐÂY LÀ DÙNG NAVIGATE!
+    navigation.navigate("EditStore", { storeId });
   };
 
   const deleteStore = (storeId) => {
@@ -165,7 +174,7 @@ const MyStore = ({ navigation }) => {
             ))}
             <TouchableOpacity
               style={styles.productContainer}
-              onPress={() => navigation.navigate("AddStore")}
+              onPress={() => navigation.navigate("CreateStore")}
               activeOpacity={0.8}
             >
               <View style={styles.iconContainer}>
