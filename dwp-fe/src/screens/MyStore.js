@@ -123,19 +123,13 @@ const MyStore = ({ navigation }) => {
               <TouchableOpacity
                 style={styles.productContainer}
                 key={store._id}
-                onPress={() => openStoreDetail(store._id)}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  editStore(store._id);
+                }}
                 activeOpacity={0.8}
               >
                 <View style={styles.actionsContainer}>
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      editStore(store._id);
-                    }}
-                  >
-                    <Ionicons name="create-outline" size={20} color="#e91e63" />
-                  </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.actionButton}
                     onPress={(e) => {

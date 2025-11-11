@@ -21,15 +21,25 @@ import { API_ROOT, COLORS } from "../utils/constant";
 
 const CreateStore = ({ navigation }) => {
   const user = useSelector((state) => state.auth.user);
+
+  // Basic store info
   const [nameShop, setNameShop] = useState("");
   const [address, setAddress] = useState("");
-  const [newImages, setNewImages] = useState([]); // Array of { uri, type }
-  const [services, setServices] = useState([]); // Array of {service_name, service_price, slot_service}
+
+  // Images
+  const [newImages, setNewImages] = useState([]); // { uri, type }
+
+  // Services
+  const [services, setServices] = useState([]);
+  const [showNewServiceForm, setShowNewServiceForm] = useState(false);
   const [newServiceName, setNewServiceName] = useState("");
   const [newServicePrice, setNewServicePrice] = useState("");
   const [newServiceSlot, setNewServiceSlot] = useState("");
+
+  // Loading
   const [updating, setUpdating] = useState(false);
 
+  // Open app settings
   const openAppSettings = () => {
     const url = Platform.OS === "ios" ? "app-settings:" : "settings:";
     Linking.openURL(url).catch(() => {
@@ -37,69 +47,48 @@ const CreateStore = ({ navigation }) => {
     });
   };
 
+  // Pick image
   const pickImage = async () => {
     if (newImages.length >= 5) {
       Alert.alert("Giới hạn", "Chỉ được thêm tối đa 5 ảnh.");
       return;
     }
-    console.log("Button pressed - Starting pickImage");
     try {
       const { status, accessPrivileges } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
-      console.log("Full permission response:", { status, accessPrivileges });
 
       if (status === "granted") {
         if (accessPrivileges !== "all") {
           Alert.alert(
             "Quyền hạn chế",
-            "Bạn chỉ có quyền limited. Vui lòng cấp full access trong Settings > App > Photos để mở đầy đủ gallery.",
+            "Vui lòng cấp full access trong Settings để chọn ảnh đầy đủ.",
             [{ text: "OK", onPress: openAppSettings }]
           );
           return;
         }
 
-        console.log("Full access - Launching image picker");
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           allowsEditing: false,
-          aspect: [4, 3],
           quality: 0.8,
         });
 
-        console.log("Picker result:", JSON.stringify(result, null, 2));
-
-        if (!result.canceled && result.assets && result.assets.length > 0) {
+        if (!result.canceled && result.assets.length > 0) {
           const pickerUri = result.assets[0].uri;
-          console.log("Selected URI:", pickerUri);
           setNewImages([
             ...newImages,
             { uri: pickerUri, type: result.assets[0].type || "image/jpeg" },
           ]);
           Alert.alert("Thành công", "Đã chọn ảnh!");
-        } else {
-          console.log("Picker canceled or no assets");
         }
-
-        if (Platform.OS === "android") {
-          const pending = await ImagePicker.getPendingResultAsync();
-          if (pending) {
-            console.log("Pending result:", pending);
-          }
-        }
-      } else if (status === "denied") {
-        Alert.alert(
-          "Quyền bị từ chối",
-          "Ứng dụng cần quyền truy cập thư viện ảnh. Vui lòng cấp quyền trong Cài đặt > Quyền riêng tư > Thư viện ảnh.",
-          [{ text: "Hủy" }, { text: "Mở Cài đặt", onPress: openAppSettings }]
-        );
       } else {
         Alert.alert(
           "Quyền truy cập cần thiết",
-          "Cần quyền truy cập thư viện ảnh để chọn ảnh. Vui lòng cấp quyền."
+          "Ứng dụng cần quyền truy cập thư viện ảnh."
         );
       }
     } catch (error) {
-      console.error("Error in pickImage:", error);
+      console.error(error);
       Alert.alert("Lỗi", `Không thể mở thư viện ảnh: ${error.message}`);
     }
   };
@@ -117,6 +106,7 @@ const CreateStore = ({ navigation }) => {
     ]);
   };
 
+  // Add service
   const addNewService = () => {
     if (
       !newServiceName.trim() ||
@@ -126,15 +116,18 @@ const CreateStore = ({ navigation }) => {
       Alert.alert("Lỗi", "Vui lòng nhập tên, giá và số slot dịch vụ.");
       return;
     }
+
     const newService = {
       service_name: newServiceName,
       service_price: parseFloat(newServicePrice),
       slot_service: parseFloat(newServiceSlot),
     };
+
     setServices([...services, newService]);
     setNewServiceName("");
     setNewServicePrice("");
     setNewServiceSlot("");
+    setShowNewServiceForm(false);
     Alert.alert("Thành công", "Đã thêm dịch vụ mới!");
   };
 
@@ -153,18 +146,16 @@ const CreateStore = ({ navigation }) => {
 
   const updateService = (index, field, value) => {
     const newServices = [...services];
-    if (field === "name") {
-      newServices[index].service_name = value;
-    } else if (field === "price") {
+    if (field === "name") newServices[index].service_name = value;
+    if (field === "price")
       newServices[index].service_price = parseFloat(value) || 0;
-    } else if (field === "slot") {
+    if (field === "slot")
       newServices[index].slot_service = parseFloat(value) || 0;
-    }
     setServices(newServices);
   };
 
   const createStore = async () => {
-    if (!nameShop || !address) {
+    if (!nameShop.trim() || !address.trim()) {
       Alert.alert("Lỗi", "Vui lòng điền tên cửa hàng và địa chỉ.");
       return;
     }
@@ -172,78 +163,44 @@ const CreateStore = ({ navigation }) => {
       Alert.alert("Lỗi", "Vui lòng thêm ít nhất 1 ảnh.");
       return;
     }
-    if (user?.id === undefined) {
+    if (!user?.id) {
       Alert.alert("Lỗi", "Không tìm thấy thông tin người dùng.");
       return;
     }
 
-    console.log("Starting create - New images URIs:", newImages);
     setUpdating(true);
     try {
       const formData = new FormData();
       formData.append("nameShop", nameShop);
       formData.append("address", address);
-      formData.append("ownerId", user.id); // Assume user._id
+      formData.append("ownerId", user.id);
       formData.append("services", JSON.stringify(services));
 
-      // Append images
-      newImages.forEach((imageObj, index) => {
-        let rawUri = imageObj.uri;
-        let mimeType = imageObj.type || "image/jpeg";
-
-        let fixedUri = rawUri;
-        if (
-          !fixedUri.startsWith("file://") &&
-          !fixedUri.startsWith("content://")
-        ) {
-          fixedUri = `file://${fixedUri}`;
+      newImages.forEach((imgObj, index) => {
+        let uri = imgObj.uri;
+        if (!uri.startsWith("file://") && Platform.OS === "android") {
+          uri = `file://${uri}`;
         }
-        if (Platform.OS === "ios" && fixedUri.startsWith("file:///var/")) {
-          fixedUri = fixedUri;
-        } else if (
-          Platform.OS === "android" &&
-          fixedUri.startsWith("/storage/")
-        ) {
-          fixedUri = `file://${fixedUri}`;
-        }
-
-        const fileName = rawUri.split("/").pop() || `image${index}.jpg`;
-
-        const file = {
-          uri: fixedUri,
-          type: mimeType,
-          name: fileName,
-        };
-        formData.append("images", file);
-        console.log(
-          `Appended file ${index}: uri=${fixedUri.substring(
-            0,
-            50
-          )}..., type=${mimeType}, name=${fileName}`
-        );
+        const name = uri.split("/").pop() || `image${index}.jpg`;
+        formData.append("images", {
+          uri,
+          type: imgObj.type,
+          name,
+        });
       });
-
-      console.log("FormData keys:");
-      for (let [key, value] of formData.entries()) {
-        const valPreview =
-          typeof value === "object"
-            ? `[File: ${value.uri || value.name}]`
-            : value.toString().substring(0, 50) + "...";
-        console.log(`${key}: ${valPreview}`);
-      }
 
       const response = await axios.post(`${API_ROOT}/store/stores`, formData, {
         headers: {
-          // Không set Content-Type để Axios tự handle
+          // Axios tự set Content-Type
         },
       });
-      console.log("BE Response:", response.data);
-      if (response.data && response.data.store) {
+
+      if (response.data?.store) {
         Alert.alert("Thành công", "Tạo cửa hàng thành công!");
-        navigation.goBack();
+       navigation.goBack({ refresh: true });
       }
     } catch (error) {
-      console.error("Create error full:", error.response?.data || error);
+      console.error(error.response?.data || error);
       Alert.alert(
         "Lỗi",
         `Tạo cửa hàng thất bại: ${error.response?.data?.error || error.message}`
@@ -253,25 +210,25 @@ const CreateStore = ({ navigation }) => {
     }
   };
 
-  const renderServiceCard = ({ item, index }) => (
+  const renderServiceCard = (item, index) => (
     <View style={styles.serviceCard} key={`service-${index}`}>
       <View style={styles.serviceRow}>
         <View style={styles.serviceField}>
           <Text style={styles.fieldLabel}>Tên dịch vụ</Text>
           <TextInput
             style={styles.serviceInput}
-            value={item.service_name || ""}
+            value={item.service_name}
             onChangeText={(value) => updateService(index, "name", value)}
-            placeholder="Nhập tên dịch vụ"
+            placeholder="Tên dịch vụ"
           />
         </View>
         <View style={styles.serviceField}>
           <Text style={styles.fieldLabel}>Giá (VND)</Text>
           <TextInput
             style={styles.serviceInput}
-            value={item.service_price ? item.service_price.toString() : ""}
-            onChangeText={(value) => updateService(index, "price", value)}
+            value={item.service_price?.toString() || ""}
             keyboardType="numeric"
+            onChangeText={(value) => updateService(index, "price", value)}
             placeholder="0"
           />
         </View>
@@ -279,9 +236,9 @@ const CreateStore = ({ navigation }) => {
           <Text style={styles.fieldLabel}>Số slot</Text>
           <TextInput
             style={styles.serviceInput}
-            value={item.slot_service ? item.slot_service.toString() : ""}
-            onChangeText={(value) => updateService(index, "slot", value)}
+            value={item.slot_service?.toString() || ""}
             keyboardType="numeric"
+            onChangeText={(value) => updateService(index, "slot", value)}
             placeholder="0"
           />
         </View>
@@ -290,15 +247,14 @@ const CreateStore = ({ navigation }) => {
         style={styles.deleteServiceButton}
         onPress={() => deleteService(index)}
       >
-        <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
+        <Ionicons name="trash-outline" size={20} color="#fff" />
       </TouchableOpacity>
     </View>
   );
 
-  const allImages = newImages.map((imgObj) => imgObj.uri);
   const renderImageItem = (item, index) => (
     <View style={styles.imageWrapper} key={`img-${index}`}>
-      <Image source={{ uri: item }} style={styles.image} />
+      <Image source={{ uri: item.uri }} style={styles.image} />
       <TouchableOpacity
         style={styles.removeImageOverlay}
         onPress={() => removeImage(index)}
@@ -315,15 +271,13 @@ const CreateStore = ({ navigation }) => {
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Tạo cửa hàng mới</Text>
         <View style={styles.headerSpacer} />
       </View>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-      >
+      <ScrollView contentContainerStyle={styles.content}>
+        {/* Basic Info */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Thông tin cơ bản</Text>
           <View style={styles.inputGroup}>
@@ -343,11 +297,11 @@ const CreateStore = ({ navigation }) => {
               onChangeText={setAddress}
               placeholder="Nhập địa chỉ"
               multiline
-              numberOfLines={3}
             />
           </View>
         </View>
 
+        {/* Images */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Hình ảnh (Tối đa 5)</Text>
@@ -360,18 +314,16 @@ const CreateStore = ({ navigation }) => {
               <Text style={styles.addImageText}>Thêm ảnh</Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.imageGrid}>{allImages.map(renderImageItem)}</View>
-          {newImages.length === 0 && (
-            <Text style={styles.helperText}>Vui lòng thêm ít nhất 1 ảnh.</Text>
-          )}
+          <View style={styles.imageGrid}>{newImages.map(renderImageItem)}</View>
         </View>
 
+        {/* Services */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Dịch vụ</Text>
             <TouchableOpacity
               style={styles.addServiceButton}
-              onPress={() => setNewServiceName("")} // Show form
+              onPress={() => setShowNewServiceForm(true)}
             >
               <Ionicons name="add" size={20} color="#4A90E2" />
               <Text style={styles.addServiceText}>Thêm dịch vụ mới</Text>
@@ -380,7 +332,8 @@ const CreateStore = ({ navigation }) => {
           <View style={styles.servicesList}>
             {services.map(renderServiceCard)}
           </View>
-          {newServiceName || newServicePrice || newServiceSlot ? (
+
+          {showNewServiceForm && (
             <View style={styles.newServiceForm}>
               <Text style={styles.formTitle}>Thêm dịch vụ mới</Text>
               <View style={styles.inputGroup}>
@@ -419,16 +372,17 @@ const CreateStore = ({ navigation }) => {
                 <Text style={styles.addButtonText}>Thêm</Text>
               </TouchableOpacity>
             </View>
-          ) : null}
+          )}
         </View>
 
+        {/* Submit */}
         <TouchableOpacity
           style={[styles.updateButton, updating && styles.updateButtonDisabled]}
           onPress={createStore}
           disabled={updating}
         >
           {updating ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.updateButtonText}>Tạo cửa hàng</Text>
           )}
@@ -439,45 +393,23 @@ const CreateStore = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8F9FA",
-  },
+  container: { flex: 1, backgroundColor: "#F8F9FA" },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#4A90E2",
+    padding: 12,
+    backgroundColor: COLORS.PRIMARY,
   },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  headerSpacer: {
-    width: 32,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 32,
-  },
+  backButton: { padding: 8 },
+  headerTitle: { fontSize: 18, fontWeight: "600", color: "#fff" },
+  headerSpacer: { width: 32 },
+  content: { padding: 16, paddingBottom: 32 },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
     elevation: 3,
   },
   cardHeader: {
@@ -486,37 +418,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
   },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#2C3E50",
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#34495E",
-    marginBottom: 4,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
+  cardTitle: { fontSize: 18, fontWeight: "600", color: "#2C3E50" },
+  label: { fontSize: 14, fontWeight: "500", color: "#34495E", marginBottom: 4 },
+  inputGroup: { marginBottom: 16 },
   textInput: {
     borderWidth: 1,
     borderColor: "#E1E8ED",
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    color: "#2C3E50",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#fff",
   },
-  multilineInput: {
-    height: 80,
-    textAlignVertical: "top",
-  },
-  addImageButton: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
+  multilineInput: { height: 80, textAlignVertical: "top" },
+  addImageButton: { flexDirection: "row", alignItems: "center" },
   addImageText: {
     marginLeft: 4,
     fontSize: 14,
@@ -544,15 +458,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -8,
     right: -8,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#fff",
     borderRadius: 12,
     elevation: 2,
-  },
-  helperText: {
-    fontSize: 14,
-    color: "#7F8C8D",
-    textAlign: "center",
-    marginTop: 8,
   },
   serviceCard: {
     backgroundColor: "#F8F9FA",
@@ -561,14 +469,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     position: "relative",
   },
-  serviceRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  serviceField: {
-    flex: 1,
-    marginRight: 8,
-  },
+  serviceRow: { flexDirection: "row", justifyContent: "space-between" },
+  serviceField: { flex: 1, marginRight: 8 },
   fieldLabel: {
     fontSize: 12,
     fontWeight: "500",
@@ -581,8 +483,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     padding: 8,
     fontSize: 14,
-    color: "#2C3E50",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#fff",
   },
   deleteServiceButton: {
     position: "absolute",
@@ -595,13 +496,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  servicesList: {
-    marginBottom: 12,
-  },
-  addServiceButton: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
+  servicesList: { marginBottom: 12 },
+  addServiceButton: { flexDirection: "row", alignItems: "center" },
   addServiceText: {
     marginLeft: 4,
     fontSize: 14,
@@ -609,7 +505,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   newServiceForm: {
-    backgroundColor: "#E8F4FD",
+    backgroundColor: "#f5f5f5",
     borderRadius: 8,
     padding: 12,
     marginTop: 8,
@@ -621,32 +517,22 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   addButton: {
-    backgroundColor: "#4A90E2",
+    backgroundColor: COLORS.PRIMARY,
     borderRadius: 8,
     padding: 12,
     alignItems: "center",
     marginTop: 8,
   },
-  addButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  addButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   updateButton: {
-    backgroundColor: "#4A90E2",
+    backgroundColor: COLORS.PRIMARY,
     borderRadius: 8,
     padding: 16,
     alignItems: "center",
     marginTop: 8,
   },
-  updateButtonDisabled: {
-    backgroundColor: "#AED6F1",
-  },
-  updateButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  updateButtonDisabled: { backgroundColor: COLORS.PRIMARY },
+  updateButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
 });
 
 export default CreateStore;
