@@ -23,7 +23,6 @@ export default function CheckList({ navigation }) {
       const res = await axios.get(`${API_ROOT}/user/request-list`);
       setRequests(res.data);
     } catch (error) {
-      console.error("Error fetching requests:", error);
       Alert.alert("Lỗi", "Không thể tải danh sách yêu cầu.");
     } finally {
       setLoading(false);

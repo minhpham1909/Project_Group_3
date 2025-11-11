@@ -7,111 +7,135 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  RefreshControl,
+  SafeAreaView,
 } from "react-native";
-import axios from "axios";
-import { useSelector } from "react-redux";
+import { Calendar } from "react-native-calendars"; // Giả sử đã install react-native-calendars
 import moment from "moment-timezone";
-import { API_ROOT } from "../utils/constant";
+import { API_ROOT } from "../utils/constant"; // Giữ nguyên nếu cần fetch thực tế
 
-export default function OrderStore({ navigation }) {
-  const ownerId = useSelector((state) => state.auth.user?.id);
-  const [orders, setOrders] = useState([]);
+export default function OrderCalendar() {
+  const [orders, setOrders] = useState([]); // Dữ liệu orders
+  const [selectedDate, setSelectedDate] = useState(
+    moment().format("YYYY-MM-DD")
+  ); // Ngày mặc định là hôm nay
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [storeId, setStoreId] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const [markedDates, setMarkedDates] = useState({}); // Đánh dấu ngày có order
 
-  useEffect(() => {
-    if (!ownerId) {
-      setError("Vui lòng đăng nhập để xem đơn hàng.");
-      setLoading(false);
-      return;
-    }
+  // Dữ liệu mẫu từ BE (có thể thay bằng fetch thực tế)
+  const sampleData = {
+    success: true,
+    total: 1,
+    orders: [
+      {
+        _id: "6913a78050168bfa37f5c9e6",
+        customerId: {
+          account: {
+            email: "tungtxhe171390@fpt.edu.vn",
+          },
+          profile: {
+            name: "Customer 2",
+            phone: "0963101235",
+          },
+          _id: "6791ed19d253eb4da67e099e",
+        },
+        price: 3,
+        storeId: {
+          _id: "6913a74950168bfa37f5c95b",
+        },
+        services: [
+          {
+            serviceId: "6913a74950168bfa37f5c95c",
+            service_name: "okkkkk",
+            service_price: 3,
+            slot_service: 33,
+            _id: "6913a78050168bfa37f5c9e7",
+          },
+        ],
+        orderDate: "2025-11-13T21:16:00.000Z",
+        status: "Completed",
+        createdAt: "2025-11-11T21:15:44.163Z",
+        updatedAt: "2025-11-11T21:50:04.987Z",
+        __v: 0,
+      },
+    ],
+  };
 
-    const fetchStore = async () => {
-      try {
-        const response = await axios.get(`${API_ROOT}/store/${ownerId}`);
-        setStoreId(response.data.storeId);
-      } catch (error) {
-        console.error("Lỗi khi lấy thông tin cửa hàng:", error);
-        setError("Không thể tải cửa hàng.");
-        setLoading(false);
-      }
-    };
-
-    fetchStore();
-  }, [ownerId]);
-
-  useEffect(() => {
-    if (!storeId) return;
-    fetchOrders();
-  }, [storeId]);
-
+  // 🔹 Load dữ liệu (mẫu hoặc fetch)
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(
-        `${API_ROOT}/service-orders/getNotificationBySupplier/${storeId}`
-      );
+      // Nếu fetch thực tế:
+      // const response = await axios.get(`${API_ROOT}/service-orders`, { /* params */ });
+      // setOrders(response.data.orders || []);
 
-      if (response.data && Array.isArray(response.data.orders)) {
-        setOrders(response.data.orders);
-      } else {
-        setError("Dữ liệu không hợp lệ.");
+      // Sử dụng dữ liệu mẫu
+      if (sampleData.success) {
+        setOrders(sampleData.orders);
       }
     } catch (err) {
-      console.error("Lỗi khi lấy đơn hàng:", err);
-      setError("Không thể tải đơn hàng.");
+      console.error("❌ Lỗi khi lấy đơn hàng:", err);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchOrders();
-  };
+  // 🔹 Group orders theo ngày và đánh dấu calendar
+  const processOrdersForCalendar = (ordersData) => {
+    const marked = {};
+    const grouped = {};
 
-  const handleStatusChange = async (orderId, newStatus) => {
-    try {
-      await axios.put(
-        `${API_ROOT}/service-orders/${orderId}/status-order`,
-        {
-          status: newStatus,
-        }
-      );
+    ordersData.forEach((order) => {
+      const orderDay = moment(order.orderDate)
+        .tz("Asia/Ho_Chi_Minh")
+        .format("YYYY-MM-DD");
+      if (!marked[orderDay]) {
+        marked[orderDay] = {
+          marked: true,
+          dotColor: "#e91e63",
+          selected: false,
+        };
+      }
+      if (!grouped[orderDay]) {
+        grouped[orderDay] = [];
+      }
+      grouped[orderDay].push(order);
+    });
 
-      Alert.alert(
-        "Thành công",
-        `Đơn hàng đã được cập nhật thành: ${newStatus}`
-      );
-      fetchOrders();
-    } catch (error) {
-      console.error("Lỗi khi cập nhật đơn hàng:", error);
-      Alert.alert("Lỗi", "Không thể cập nhật đơn hàng.");
+    // Đánh dấu ngày hiện tại nếu không có order
+    const today = moment().format("YYYY-MM-DD");
+    if (!marked[today]) {
+      marked[today] = { selected: true, selectedColor: "#e91e63" };
     }
+
+    setMarkedDates(marked);
+    return grouped;
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "Completed":
-        return "#4CAF50";
-      case "Rejected":
-        return "#f44336";
-      case "Pending":
-        return "#FF9800";
-      default:
-        return "#2196F3";
-    }
+  useEffect(() => {
+    fetchOrders().then(() => {
+      // Sau khi load orders, process
+      processOrdersForCalendar(orders);
+    });
+  }, []);
+
+  // 🔹 Xử lý chọn ngày
+  const onDayPress = (day) => {
+    setSelectedDate(day.dateString);
   };
 
+  // 🔹 Lọc orders theo ngày được chọn
+  const filteredOrders = orders.filter(
+    (order) =>
+      moment(order.orderDate).tz("Asia/Ho_Chi_Minh").format("YYYY-MM-DD") ===
+      selectedDate
+  );
+
+  // 🔹 Render order item
   const renderOrderItem = ({ item }) => (
     <View style={styles.orderCard}>
       <View style={styles.orderHeader}>
         <Text style={styles.serviceName}>
-          🛎 {item.services[0]?.serviceName || "Dịch vụ"}
+          🏪 {item.storeId?.name || "Cửa hàng"}
         </Text>
         <View
           style={[
@@ -124,207 +148,224 @@ export default function OrderStore({ navigation }) {
       </View>
 
       <Text style={styles.orderDetails}>
-        💰 Giá: {item.services[0]?.price?.toLocaleString() || 0} VND
+        👤 {item.customerId?.profile?.name || "Không rõ"} (
+        {item.customerId?.profile?.phone || "N/A"})
       </Text>
       <Text style={styles.orderDetails}>
-        ⏰ Thời gian:{" "}
-        {moment(item.schedule)
-          .tz("Asia/Ho_Chi_Minh")
-          .format("DD/MM/YYYY HH:mm")}
+        📧 {item.customerId?.account?.email || "N/A"}
       </Text>
       <Text style={styles.orderDetails}>
-        👤 Khách hàng: {item.userName || "N/A"}
-      </Text>
-      <Text style={styles.orderDetails}>
-        📧 Email: {item.userMail || "N/A"}
+        💰 Tổng: {item.price?.toLocaleString()}₫
       </Text>
 
-      {item.status !== "Completed" && item.status !== "Rejected" && (
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.button, styles.acceptButton]}
-            onPress={() => handleStatusChange(item.orderId, "Completed")}
-          >
-            <Text style={styles.buttonText}>✔ Chấp nhận</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.rejectButton]}
-            onPress={() => handleStatusChange(item.orderId, "Rejected")}
-          >
-            <Text style={styles.buttonText}>✖ Từ chối</Text>
-          </TouchableOpacity>
+      {item.services?.map((service, index) => (
+        <View key={index} style={styles.serviceBox}>
+          <Text style={styles.serviceText}>
+            🔹 {service.service_name} -{" "}
+            {service.service_price?.toLocaleString()}₫ (Slot:{" "}
+            {service.slot_service})
+          </Text>
         </View>
-      )}
+      ))}
     </View>
   );
 
-  if (loading && !refreshing) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007bff" />
-        <Text>Đang tải đơn hàng...</Text>
-      </View>
-    );
-  }
+  // 🔹 Màu theo trạng thái
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "Completed":
+        return "#4CAF50";
+      case "Rejected":
+        return "#f44336";
+      case "Pending":
+        return "#FF9800";
+      case "Confirm":
+        return "#2196F3";
+      default:
+        return "#e91e63";
+    }
+  };
 
-  if (error) {
+  if (loading) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity
-          style={styles.retryButton}
-          onPress={() => {
-            setError(null);
-            fetchOrders();
-          }}
-        >
-          <Text style={styles.retryButtonText}>Thử lại</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#e91e63" />
+          <Text style={styles.loadingText}>Đang tải lịch đơn hàng...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>📦 Đơn hàng của cửa hàng</Text>
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.title}>Quản lý đặt lịch</Text>
+
+      {/* Phần trên: Calendar và ngày chọn */}
+      <View style={styles.topSection}>
+        <View style={styles.calendarContainer}>
+          <Calendar
+            onDayPress={onDayPress}
+            markedDates={markedDates}
+            theme={{
+              backgroundColor: "#FFFFFF",
+              calendarBackground: "#FFFFFF",
+              selectedDayBackgroundColor: "#e91e63",
+              selectedDayTextColor: "#FFFFFF",
+              todayTextColor: "#e91e63",
+              dayTextColor: "#000000",
+              textDisabledColor: "#d9e1e8",
+              dotColor: "#e91e63",
+              selectedDotColor: "#FFFFFF",
+              arrowColor: "#e91e63",
+              monthTextColor: "#000000",
+              indicatorColor: "transparent",
+              textDayFontWeight: "300",
+              textMonthFontWeight: "bold",
+              textDayHeaderFontWeight: "600",
+              textDayFontSize: 16,
+              textMonthFontSize: 18,
+              textDayHeaderFontSize: 14,
+            }}
+          />
+        </View>
+
+        <View style={styles.selectedDateContainer}>
+          <Text style={styles.selectedDateText}>
+            Ngày {moment(selectedDate).format("DD/MM/YYYY")}
+          </Text>
+        </View>
+      </View>
+
+      {/* Phần dưới: FlatList với flex:1 */}
       <FlatList
-        data={orders}
+        data={filteredOrders}
         renderItem={renderOrderItem}
-        keyExtractor={(item, index) => item.orderId || index.toString()}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        keyExtractor={(item) => item._id}
+        contentContainerStyle={styles.ordersList}
+        style={styles.listContainer}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>📭 Không có đơn hàng nào</Text>
+          <View style={styles.emptyOrders}>
+            <Text style={styles.emptyOrdersText}>Lịch trống </Text>
           </View>
         }
+        showsVerticalScrollIndicator={false}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f2f2f2",
-    paddingTop: 20,
+    backgroundColor: "#FFFFFF",
   },
   title: {
     textAlign: "center",
     fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 20,
-    color: "#333",
-    paddingHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 10,
+    color: "#000000",
   },
-  listContent: {
+  topSection: {
+    flex: 0, // Không co giãn
+  },
+  calendarContainer: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingVertical: 10,
+    backgroundColor: "#FFFFFF",
+  },
+  selectedDateContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: "#FAFAFA",
+    alignItems: "center",
+  },
+  selectedDateText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#000000",
+  },
+  listContainer: {
+    flex: 1, // Chiếm phần còn lại
+  },
+  ordersList: {
+    paddingHorizontal: 20,
+    paddingBottom: 30,
   },
   orderCard: {
-    backgroundColor: "#FFF",
-    padding: 15,
-    marginBottom: 15,
-    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    padding: 20,
+    marginBottom: 16,
+    borderRadius: 16,
     elevation: 3,
     shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    borderLeftWidth: 5,
-    borderLeftColor: "#007bff",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: "#F5F5F5",
   },
   orderHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 16,
   },
   serviceName: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#333",
+    color: "#000000",
     flex: 1,
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 15,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    minWidth: 80,
+    alignItems: "center",
   },
   statusText: {
-    color: "#FFF",
+    color: "#FFFFFF",
+    fontWeight: "600",
     fontSize: 12,
-    fontWeight: "bold",
   },
   orderDetails: {
     fontSize: 14,
-    color: "#555",
-    marginTop: 5,
+    color: "#333333",
+    marginVertical: 4,
+    lineHeight: 20,
   },
-  buttonContainer: {
-    flexDirection: "row",
-    marginTop: 15,
-    justifyContent: "space-between",
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 10,
-    marginHorizontal: 5,
+  serviceBox: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: "#FAFAFA",
     borderRadius: 8,
-    alignItems: "center",
   },
-  acceptButton: {
-    backgroundColor: "#4CAF50",
-  },
-  rejectButton: {
-    backgroundColor: "#f44336",
-  },
-  buttonText: {
-    color: "#fff",
+  serviceText: {
     fontSize: 14,
-    fontWeight: "bold",
+    color: "#000000",
+    lineHeight: 18,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  errorText: {
+  loadingText: {
+    marginTop: 16,
     fontSize: 16,
-    color: "#f44336",
-    marginBottom: 20,
-    textAlign: "center",
+    color: "#666666",
   },
-  retryButton: {
-    backgroundColor: "#007bff",
+  emptyOrders: {
+    alignItems: "center",
+    marginTop: 40,
     paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
   },
-  retryButtonText: {
-    color: "#FFF",
+  emptyOrdersText: {
+    color: "#666666",
     fontSize: 16,
-    fontWeight: "bold",
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 50,
-  },
-  emptyText: {
-    fontSize: 18,
-    color: "#888",
     textAlign: "center",
   },
 });
-

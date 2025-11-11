@@ -1,538 +1,451 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
-  ScrollView,
-  TouchableOpacity,
+  FlatList,
   StyleSheet,
-  Alert,
+  TouchableOpacity,
   ActivityIndicator,
+  Alert,
   RefreshControl,
+  SafeAreaView,
+  Modal,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import { useSelector } from "react-redux";
 import moment from "moment-timezone";
-import { API_ROOT, COLORS, FONTS, SPACING } from "../utils/constant";
+import { API_ROOT } from "../utils/constant";
 
-export default function SupplierNotification({ navigation }) {
-  const ownerId = useSelector((state) => state.auth.user?.id);
-  const [notifications, setNotifications] = useState([]);
+export default function SupplierNotification() {
+  const user = useSelector((state) => state.auth.user);
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [storeId, setStoreId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [currentOrderId, setCurrentOrderId] = useState(null);
 
-  useEffect(() => {
-    if (!ownerId) {
-      setError("Vui lòng đăng nhập để xem thông báo.");
-      setLoading(false);
-      return;
-    }
+  // Danh sách trạng thái có thể chọn
+  const statusOptions = [
+    { label: "Hoàn thành", value: "Completed" },
+    { label: "Hủy", value: "Cancelled" }, // Sửa từ "Rejected" thành "Cancelled" để khớp BE
+    { label: "Xác nhận", value: "Confirm" },
+  ];
 
-    const fetchStore = async () => {
-      try {
-        const response = await axios.get(
-          `${API_ROOT}/store/${ownerId}`
-        );
-        setStoreId(response.data.storeId);
-      } catch (error) {
-        console.error("Lỗi khi lấy thông tin cửa hàng:", error);
-        setError("Không thể tải cửa hàng.");
-        setLoading(false);
-      }
-    };
-
-    fetchStore();
-  }, [ownerId]);
-
-  const fetchNotifications = useCallback(async () => {
-    if (!storeId) return;
+  // 🔹 Lấy tất cả đơn hàng
+  const fetchOrders = async () => {
     try {
-      setError(null);
-      const response = await axios.get(
-        `${API_ROOT}/service-orders/getNotificationBySupplier/${storeId}`
-      );
+      setLoading(true);
 
-      if (response.data && Array.isArray(response.data.orders)) {
-        setNotifications(response.data.orders);
+      // Gửi userId và role dưới dạng query params nếu backend chưa có middleware
+      const response = await axios.get(`${API_ROOT}/service-orders`, {
+        params: { userId: user?.id, role: user?.role },
+        headers: { Authorization: `Bearer ${user?.token}` },
+      });
+
+      if (response.data && response.data.success) {
+        setOrders(response.data.orders);
+        setError(null);
       } else {
-        setError("Dữ liệu không hợp lệ.");
+        setOrders([]);
+        setError("Không có dữ liệu đơn hàng.");
       }
     } catch (err) {
-      console.error("Lỗi khi lấy thông báo:", err);
-      setError("Không thể tải thông báo. Vui lòng thử lại sau.");
+      console.error("❌ Lỗi khi lấy đơn hàng:", err);
+      setOrders([]);
+      setError("Không thể tải đơn hàng.");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [storeId]);
+  };
 
   useEffect(() => {
-    if (storeId) {
-      fetchNotifications();
-    }
-  }, [storeId, fetchNotifications]);
+    if (user?.id && user?.role) fetchOrders();
+  }, [user]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchNotifications();
+    fetchOrders();
   };
 
-  const handleAccept = async (orderId) => {
-    Alert.alert(
-      "Xác nhận",
-      "Bạn có chắc chắn muốn chấp nhận đơn hàng này?",
-      [
-        {
-          text: "Hủy",
-          style: "cancel",
-        },
-        {
-          text: "Chấp nhận",
-          style: "default",
-          onPress: async () => {
-            try {
-              await axios.put(
-                `${API_ROOT}/service-orders/${orderId}/status-order`,
-                {
-                  status: "Completed",
-                }
-              );
-              Alert.alert("Thành công", "Lịch hẹn đã được chấp nhận!");
-              fetchNotifications();
-            } catch (error) {
-              console.error("Lỗi khi chấp nhận đơn hàng:", error);
-              Alert.alert("Lỗi", "Không thể chấp nhận đơn hàng. Vui lòng thử lại.");
-            }
-          },
-        },
-      ]
-    );
+  // 🔹 Mở modal chọn trạng thái
+  const openStatusModal = (orderId) => {
+    setCurrentOrderId(orderId);
+    setShowStatusModal(true);
   };
 
-  const handleReject = async (orderId) => {
-    Alert.alert(
-      "Xác nhận",
-      "Bạn có chắc chắn muốn từ chối đơn hàng này?",
-      [
-        {
-          text: "Hủy",
-          style: "cancel",
-        },
-        {
-          text: "Từ chối",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await axios.put(
-                `${API_ROOT}/service-orders/${orderId}/status-order`,
-                {
-                  status: "Rejected",
-                }
-              );
-              Alert.alert("Thành công", "Lịch hẹn đã bị từ chối!");
-              fetchNotifications();
-            } catch (error) {
-              console.error("Lỗi khi từ chối đơn hàng:", error);
-              Alert.alert("Lỗi", "Không thể từ chối đơn hàng. Vui lòng thử lại.");
-            }
-          },
-        },
-      ]
-    );
+  // 🔹 Chọn trạng thái và cập nhật
+  const selectStatus = (newStatus) => {
+    if (currentOrderId) {
+      handleStatusChange(currentOrderId, newStatus);
+    }
+    setShowStatusModal(false);
+    setCurrentOrderId(null);
   };
 
+  // 🔹 Cập nhật trạng thái đơn hàng
+  const handleStatusChange = async (orderId, newStatus) => {
+    try {
+      await axios.put(
+        `${API_ROOT}/service-orders/orders/${orderId}/status`,
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${user?.token}` } }
+      );
+
+      Alert.alert("✅ Thành công", `Đơn hàng đã được cập nhật: ${newStatus}`);
+      fetchOrders();
+    } catch (error) {
+      console.error("❌ Lỗi khi cập nhật trạng thái:", error);
+      Alert.alert("Lỗi", "Không thể cập nhật trạng thái đơn hàng.");
+    }
+  };
+
+  // 🔹 Màu theo trạng thái
   const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case "pending":
-      case "chờ xử lý":
-        return COLORS.WARNING;
-      case "completed":
-      case "đã hoàn thành":
-        return COLORS.SUCCESS;
-      case "rejected":
-      case "đã từ chối":
-        return COLORS.ERROR;
+    switch (status) {
+      case "Completed":
+        return "#4CAF50";
+      case "Rejected":
+      case "Cancelled":
+        return "#f44336";
+      case "Pending":
+        return "#FF9800";
+      case "Confirm":
+        return "#2196F3";
       default:
-        return COLORS.GRAY;
+        return "#e91e63";
     }
   };
 
-  const getStatusIcon = (status) => {
-    switch (status?.toLowerCase()) {
-      case "pending":
-      case "chờ xử lý":
-        return "time-outline";
-      case "completed":
-      case "đã hoàn thành":
-        return "checkmark-circle-outline";
-      case "rejected":
-      case "đã từ chối":
-        return "close-circle-outline";
-      default:
-        return "help-circle-outline";
-    }
-  };
-
-  const formatPrice = (price) => {
-    if (!price) return "0";
-    return price.toLocaleString("vi-VN");
-  };
-
-  return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <View style={styles.headerIconContainer}>
-            <Ionicons name="notifications" size={28} color={COLORS.WHITE} />
-          </View>
-          <View>
-            <Text style={styles.headerTitle}>Thông báo đơn hàng</Text>
-            <Text style={styles.headerSubtitle}>Quản lý đơn hàng</Text>
-          </View>
+  // 🔹 Render từng đơn hàng
+  const renderOrderItem = ({ item }) => (
+    <View style={styles.orderCard}>
+      <View style={styles.orderHeader}>
+        <Text style={styles.serviceName}>
+          🏪 {item.storeId?.name || "Cửa hàng"}
+        </Text>
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: getStatusColor(item.status) },
+          ]}
+        >
+          <Text style={styles.statusText}>{item.status}</Text>
         </View>
       </View>
 
-      {loading && !refreshing ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.PRIMARY} />
-          <Text style={styles.loadingText}>Đang tải thông báo...</Text>
+      <Text style={styles.orderDetails}>
+        👤 Khách hàng: {item.customerId?.profile?.name || "Không rõ"}
+      </Text>
+      <Text style={styles.orderDetails}>
+        📧 Email: {item.customerId?.account?.email || "N/A"}
+      </Text>
+      <Text style={styles.orderDetails}>
+        📧 Số điện thoại: {item.customerId?.profile?.phone || "N/A"}
+      </Text>
+      <Text style={styles.orderDetails}>
+        📅 Ngày đặt:{" "}
+        {moment(item.orderDate)
+          .tz("Asia/Ho_Chi_Minh")
+          .format("DD/MM/YYYY HH:mm")}
+      </Text>
+
+      {item.services?.map((service, index) => (
+        <View key={index} style={styles.serviceBox}>
+          <Text style={styles.serviceText}>
+            🔹 {service.service_name} -{" "}
+            {service.service_price?.toLocaleString()}₫
+          </Text>
         </View>
-      ) : error ? (
+      ))}
+
+      {item.status !== "Completed" && (
+        <TouchableOpacity
+          style={styles.statusSelectButton}
+          onPress={() => openStatusModal(item._id)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.statusSelectText}>Chọn trạng thái mới</Text>
+          <Text style={styles.dropdownArrow}>▼</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
+  if (loading && !refreshing)
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#e91e63" />
+          <Text style={styles.loadingText}>Đang tải đơn hàng...</Text>
+        </View>
+      </SafeAreaView>
+    );
+
+  if (error)
+    return (
+      <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color={COLORS.ERROR} />
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={fetchNotifications}>
-            <Ionicons name="refresh" size={20} color={COLORS.WHITE} />
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              setError(null);
+              fetchOrders();
+            }}
+            activeOpacity={0.8}
+          >
             <Text style={styles.retryButtonText}>Thử lại</Text>
           </TouchableOpacity>
         </View>
-      ) : (
-        <ScrollView
-          style={styles.container}
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          showsVerticalScrollIndicator={false}
-        >
-          {notifications.length > 0 ? (
-            notifications.map((notification, index) => (
-              <View key={notification.orderId || index} style={styles.notificationCard}>
-                <View style={styles.cardHeader}>
-                  <View
-                    style={[
-                      styles.statusIndicator,
-                      { backgroundColor: getStatusColor(notification.status) },
-                    ]}
-                  />
-                  <View style={styles.cardContent}>
-                    <Text style={styles.serviceName} numberOfLines={1}>
-                      {notification.services[0]?.serviceName || "Dịch vụ không xác định"}
-                    </Text>
-                    <View style={styles.statusBadge}>
-                      <Ionicons
-                        name={getStatusIcon(notification.status)}
-                        size={16}
-                        color={getStatusColor(notification.status)}
-                      />
-                      <Text
-                        style={[
-                          styles.statusText,
-                          { color: getStatusColor(notification.status) },
-                        ]}
-                      >
-                        {notification.status || "Chưa xác định"}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
+      </SafeAreaView>
+    );
 
-                <View style={styles.cardBody}>
-                  <View style={styles.infoRow}>
-                    <Ionicons name="cash-outline" size={18} color={COLORS.GRAY} />
-                    <Text style={styles.infoText}>
-                      {formatPrice(notification.services[0]?.price || 0)} VND
-                    </Text>
-                  </View>
-                  <View style={styles.infoRow}>
-                    <Ionicons name="calendar-outline" size={18} color={COLORS.GRAY} />
-                    <Text style={styles.infoText}>
-                      {moment(notification.schedule)
-                        .tz("Asia/Ho_Chi_Minh")
-                        .format("DD/MM/YYYY HH:mm")}
-                    </Text>
-                  </View>
-                  <View style={styles.infoRow}>
-                    <Ionicons name="person-outline" size={18} color={COLORS.GRAY} />
-                    <Text style={styles.infoText} numberOfLines={1}>
-                      {notification.userName || "Không xác định"}
-                    </Text>
-                  </View>
-                  <View style={styles.infoRow}>
-                    <Ionicons name="mail-outline" size={18} color={COLORS.GRAY} />
-                    <Text style={styles.infoText} numberOfLines={1}>
-                      {notification.userMail || "Không xác định"}
-                    </Text>
-                  </View>
-                </View>
+  return (
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.title}>Thông báo của bạn</Text>
+      <FlatList
+        data={orders}
+        renderItem={renderOrderItem}
+        keyExtractor={(item) => item._id}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#e91e63"]}
+            tintColor="#e91e63"
+          />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>📭 Không có đơn hàng nào</Text>
+            <Text style={styles.emptySubText}>Kéo xuống để làm mới</Text>
+          </View>
+        }
+      />
 
-                {notification.status !== "Completed" &&
-                  notification.status !== "Rejected" && (
-                    <View style={styles.cardFooter}>
-                      <TouchableOpacity
-                        style={styles.acceptButton}
-                        onPress={() => handleAccept(notification.orderId)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="checkmark-circle" size={20} color={COLORS.WHITE} />
-                        <Text style={styles.buttonText}>Chấp nhận</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.rejectButton}
-                        onPress={() => handleReject(notification.orderId)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="close-circle" size={20} color={COLORS.WHITE} />
-                        <Text style={styles.buttonText}>Từ chối</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-              </View>
-            ))
-          ) : (
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconContainer}>
-                <Ionicons name="notifications-off-outline" size={64} color={COLORS.GRAY} />
-              </View>
-              <Text style={styles.emptyTitle}>Không có thông báo</Text>
-              <Text style={styles.emptyText}>
-                Bạn chưa có đơn hàng nào. Kéo xuống để làm mới.
-              </Text>
-            </View>
-          )}
-        </ScrollView>
-      )}
+      {/* Modal chọn trạng thái */}
+      <Modal
+        visible={showStatusModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowStatusModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Chọn Trạng Thái Mới</Text>
+            <FlatList
+              data={statusOptions}
+              keyExtractor={(item, index) => index.toString()}
+              renderItem={({ item: statusOption }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => selectStatus(statusOption.value)}
+                >
+                  <Text style={styles.modalItemText}>{statusOption.label}</Text>
+                </TouchableOpacity>
+              )}
+              showsVerticalScrollIndicator={false}
+            />
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowStatusModal(false)}
+            >
+              <Text style={styles.modalCloseText}>Hủy</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
-  },
-  header: {
-    backgroundColor: COLORS.PRIMARY,
-    paddingVertical: SPACING.LARGE,
-    paddingHorizontal: SPACING.LARGE,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  headerContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING.MEDIUM,
-  },
-  headerIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    fontSize: FONTS.XLARGE,
-    fontWeight: "bold",
-    color: COLORS.WHITE,
-  },
-  headerSubtitle: {
-    fontSize: FONTS.SMALL,
-    color: "rgba(255, 255, 255, 0.9)",
-    marginTop: 2,
-  },
   container: {
     flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: "#FFFFFF", // Trắng làm background chính
   },
-  scrollContent: {
-    padding: SPACING.MEDIUM,
-    paddingBottom: SPACING.XLARGE,
+  title: {
+    textAlign: "center",
+    fontSize: 24,
+    fontWeight: "bold",
+    marginTop: 20,
+    marginBottom: 20,
+    color: "#000000", // Đen cho tiêu đề
+  },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+    flexGrow: 1,
+  },
+  orderCard: {
+    backgroundColor: "#FFFFFF", // Trắng cho card
+    padding: 20,
+    marginBottom: 16,
+    borderRadius: 16,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: "#F5F5F5", // Xám rất nhạt cho border
+  },
+  orderHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  serviceName: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#000000", // Đen cho tên dịch vụ
+    flex: 1,
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    minWidth: 80,
+    alignItems: "center",
+  },
+  statusText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+    fontSize: 12,
+  },
+  orderDetails: {
+    fontSize: 14,
+    color: "#333333", // Xám đậm cho details
+    marginVertical: 4,
+    lineHeight: 20,
+  },
+  serviceBox: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: "#FAFAFA", // Xám rất nhạt cho service box
+    borderRadius: 8,
+  },
+  serviceText: {
+    fontSize: 14,
+    color: "#000000", // Đen cho service text
+    lineHeight: 18,
+  },
+  statusSelectButton: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#FAFAFA",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+  },
+  statusSelectText: {
+    fontSize: 16,
+    color: "#000000",
+    flex: 1,
+  },
+  dropdownArrow: {
+    fontSize: 16,
+    color: "#666666",
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: COLORS.BACKGROUND,
   },
   loadingText: {
-    marginTop: SPACING.MEDIUM,
-    fontSize: FONTS.REGULAR,
-    color: COLORS.GRAY,
+    marginTop: 16,
+    fontSize: 16,
+    color: "#666666", // Xám cho loading text
   },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: SPACING.XLARGE,
-    backgroundColor: COLORS.BACKGROUND,
+    paddingHorizontal: 40,
   },
   errorText: {
-    fontSize: FONTS.REGULAR,
-    color: COLORS.ERROR,
-    marginTop: SPACING.MEDIUM,
-    marginBottom: SPACING.LARGE,
+    color: "#f44336",
+    fontSize: 16,
     textAlign: "center",
+    marginBottom: 20,
+    lineHeight: 22,
   },
   retryButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.PRIMARY,
-    paddingVertical: SPACING.MEDIUM,
-    paddingHorizontal: SPACING.LARGE,
+    backgroundColor: "#e91e63",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     borderRadius: 12,
-    gap: SPACING.SMALL,
   },
   retryButtonText: {
-    color: COLORS.WHITE,
-    fontSize: FONTS.REGULAR,
-    fontWeight: "bold",
-  },
-  notificationCard: {
-    backgroundColor: COLORS.WHITE,
-    borderRadius: 16,
-    padding: SPACING.MEDIUM,
-    marginBottom: SPACING.MEDIUM,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.PRIMARY,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: SPACING.MEDIUM,
-  },
-  statusIndicator: {
-    width: 4,
-    height: 40,
-    borderRadius: 2,
-    marginRight: SPACING.MEDIUM,
-  },
-  cardContent: {
-    flex: 1,
-  },
-  serviceName: {
-    fontSize: FONTS.MEDIUM,
-    fontWeight: "bold",
-    color: COLORS.TEXT,
-    marginBottom: SPACING.SMALL,
-  },
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    paddingVertical: SPACING.TINY,
-    paddingHorizontal: SPACING.SMALL,
-    borderRadius: 12,
-    backgroundColor: `${COLORS.PRIMARY}15`,
-    gap: 4,
-  },
-  statusText: {
-    fontSize: FONTS.TINY,
+    color: "#FFFFFF",
     fontWeight: "600",
+    fontSize: 16,
   },
-  cardBody: {
-    marginBottom: SPACING.MEDIUM,
-    gap: SPACING.SMALL,
+  emptyContainer: {
+    alignItems: "center",
+    marginTop: 80,
+    paddingHorizontal: 20,
   },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: SPACING.SMALL,
+  emptyText: {
+    color: "#000000", // Đen cho empty text
+    fontSize: 18,
+    fontWeight: "500",
+    marginBottom: 8,
+    textAlign: "center",
   },
-  infoText: {
+  emptySubText: {
+    color: "#666666", // Xám cho subtext
+    fontSize: 14,
+    textAlign: "center",
+  },
+  // Modal Styles
+  modalOverlay: {
     flex: 1,
-    fontSize: FONTS.SMALL,
-    color: COLORS.TEXT,
-    lineHeight: 20,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
-  cardFooter: {
-    flexDirection: "row",
-    gap: SPACING.SMALL,
-    paddingTop: SPACING.MEDIUM,
+  modalContainer: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingVertical: 20,
+    maxHeight: "50%",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#000000",
+    textAlign: "center",
+    marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  modalItem: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+  modalItemText: {
+    fontSize: 16,
+    color: "#000000",
+  },
+  modalCloseButton: {
+    paddingVertical: 16,
+    alignItems: "center",
     borderTopWidth: 1,
     borderTopColor: "#F0F0F0",
   },
-  acceptButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.SUCCESS,
-    paddingVertical: SPACING.MEDIUM,
-    borderRadius: 12,
-    gap: SPACING.SMALL,
-  },
-  rejectButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.ERROR,
-    paddingVertical: SPACING.MEDIUM,
-    borderRadius: 12,
-    gap: SPACING.SMALL,
-  },
-  buttonText: {
-    color: COLORS.WHITE,
-    fontSize: FONTS.REGULAR,
-    fontWeight: "bold",
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: SPACING.XLARGE * 2,
-    paddingHorizontal: SPACING.XLARGE,
-  },
-  emptyIconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: COLORS.WHITE,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: SPACING.LARGE,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  emptyTitle: {
-    fontSize: FONTS.XLARGE,
-    fontWeight: "bold",
-    color: COLORS.TEXT,
-    marginBottom: SPACING.SMALL,
-    textAlign: "center",
-  },
-  emptyText: {
-    fontSize: FONTS.REGULAR,
-    color: COLORS.GRAY,
-    textAlign: "center",
-    lineHeight: 22,
+  modalCloseText: {
+    fontSize: 16,
+    color: "#e91e63",
+    fontWeight: "500",
   },
 });

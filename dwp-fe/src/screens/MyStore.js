@@ -22,25 +22,35 @@ const MyStore = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const getAllStores = async () => {
-    try {
-      setLoading(true);
-     let response;
+ const getAllStores = async () => {
+  try {
+    setLoading(true);
+    let response;
 
-     if (user.role === 2) {
-       // Nếu role = 2, gọi API lấy stores theo supplier
-       response = await axios.get(`${API_ROOT}/store/stores/user/${user.id}`);
-     } else if (user.role === 3) {
-       // Nếu role = 3, admin 
-       response = await axios.get(`${API_ROOT}/store/stores`);
-     }
-      setStores(response.data || []);
-    } catch (error) {
-      console.error("Lỗi khi lấy dữ liệu:", error);
-    } finally {
+    if (user.role === 2) {
+      // Nếu role = 2, gọi API lấy stores theo supplier
+      response = await axios.get(`${API_ROOT}/store/stores/user/${user.id}`);
+    } else if (user.role === 3) {
+      // Nếu role = 3, admin 
+      response = await axios.get(`${API_ROOT}/store/stores`);
+    } else {
+      // Nếu role khác, không gọi API
+      setStores([]);
       setLoading(false);
+      return;
     }
-  };
+
+    if (response?.data && response.data.length > 0) {
+      setStores(response.data);
+    } else {
+      setStores([]); // Không lỗi, chỉ là không có dữ liệu
+    }
+  } catch (error) {
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // Load ban đầu khi mount
   useEffect(() => {
