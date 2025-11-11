@@ -31,9 +31,11 @@ export default function Profile({ navigation }) {
 
   useFocusEffect(
     React.useCallback(() => {
-      userInfoDetail(); // Call API to get user details
-      getQuizByUserId(); // Call API to get quizzes by userId
-    }, [])
+      if (!userId) return; // Nếu không có userId thì không gọi API
+
+      userInfoDetail();
+      getQuizByUserId();
+    }, [userId])
   );
 
   const userInfoDetail = async () => {
@@ -68,25 +70,19 @@ export default function Profile({ navigation }) {
   };
 
   const handleLogout = () => {
+    const confirmLogout = async () => {
+      try {
+        await axios.post(`${API_ROOT}/auth/sign-out`);
+      } catch (error) {
+        console.log("Logout Error:", error.response || error);
+      } finally {
+        dispatch(logout()); // reset state dù API lỗi
+      }
+    };
+
     Alert.alert("Đăng xuất", "Bạn có chắc chắn muốn đăng xuất?", [
-      {
-        text: "Hủy",
-        style: "cancel",
-      },
-      {
-        text: "Đăng xuất",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await axios.post(`${API_ROOT}/auth/sign-out`);
-            dispatch(logout());
-          } catch (error) {
-            console.log("Logout Error:", error.response);
-            // Vẫn logout dù API có lỗi
-            dispatch(logout());
-          }
-        },
-      },
+      { text: "Hủy", style: "cancel" },
+      { text: "Đăng xuất", style: "destructive", onPress: confirmLogout },
     ]);
   };
 
@@ -240,36 +236,38 @@ export default function Profile({ navigation }) {
               <Ionicons name="create-outline" size={20} color={COLORS.WHITE} />
               <Text style={styles.editButtonText}>Chỉnh sửa thông tin</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.editButton,
-                (isRequesting ||
-                  userDetails?.roleRequestStatus === "pending") && {
-                  opacity: 0.6,
-                },
-              ]}
-              disabled={
-                isRequesting || userDetails?.roleRequestStatus === "pending"
-              }
-              onPress={handleRequestBecomeSupplier}
-            >
-              <Ionicons
-                name="storefront-outline"
-                size={20}
-                color={COLORS.WHITE}
-              />
-              <Text style={styles.editButtonText}>
-                {isRequesting
-                  ? "Đang gửi yêu cầu..."
-                  : userDetails?.roleRequestStatus === "pending"
-                  ? "Đã gửi yêu cầu - Chờ duyệt"
-                  : "Yêu cầu trở thành Nhà cung cấp"}
-              </Text>
-            </TouchableOpacity>
+            {userDetails?.role === 1 && (
+              <TouchableOpacity
+                style={[
+                  styles.editButton,
+                  (isRequesting ||
+                    userDetails?.roleRequestStatus === "pending") && {
+                    opacity: 0.6,
+                  },
+                ]}
+                disabled={
+                  isRequesting || userDetails?.roleRequestStatus === "pending"
+                }
+                onPress={handleRequestBecomeSupplier}
+              >
+                <Ionicons
+                  name="storefront-outline"
+                  size={20}
+                  color={COLORS.WHITE}
+                />
+                <Text style={styles.editButtonText}>
+                  {isRequesting
+                    ? "Đang gửi yêu cầu..."
+                    : userDetails?.roleRequestStatus === "pending"
+                    ? "Đã gửi yêu cầu - Chờ duyệt"
+                    : "Yêu cầu trở thành Nhà cung cấp"}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Quiz History Section */}
-          <View style={styles.section}>
+          {/* <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons
                 name="document-text-outline"
@@ -333,7 +331,7 @@ export default function Profile({ navigation }) {
                 </TouchableOpacity>
               ))
             )}
-          </View>
+          </View> */}
 
           {/* Settings Section */}
           <View style={styles.section}>

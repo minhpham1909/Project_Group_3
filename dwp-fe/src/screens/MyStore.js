@@ -25,9 +25,15 @@ const MyStore = ({ navigation }) => {
   const getAllStores = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(
-        `${API_ROOT}/store/stores/user/${user.id}`
-      );
+     let response;
+
+     if (user.role === 2) {
+       // Nếu role = 2, gọi API lấy stores theo supplier
+       response = await axios.get(`${API_ROOT}/store/stores/user/${user.id}`);
+     } else if (user.role === 3) {
+       // Nếu role = 3, admin 
+       response = await axios.get(`${API_ROOT}/store/stores`);
+     }
       setStores(response.data || []);
     } catch (error) {
       console.error("Lỗi khi lấy dữ liệu:", error);

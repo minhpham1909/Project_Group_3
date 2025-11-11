@@ -97,7 +97,7 @@ function Main() {
       )}
       {role === 3 && (
         <>
-          <Tab.Screen name="Censor" component={Censor} />
+          {/* <Tab.Screen name="Censor" component={Censor} /> */}
           <Tab.Screen name="CheckList" component={CheckList} />
         </>
       )}
