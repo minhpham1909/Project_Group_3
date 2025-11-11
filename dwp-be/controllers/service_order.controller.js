@@ -233,12 +233,94 @@ const getNotificationByRoleSupplier = async (req, res) => {
     }
 };
 
+const updateOrderStatus = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body;
+
+    // 1. Kiểm tra đơn hàng có tồn tại không
+    const order = await ServiceOrders.findById(orderId);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    // 2. Kiểm tra store có thuộc user này không
+    const store = await Store.findById(order.storeId);
+    if (!store) return res.status(404).json({ message: "Store not found" });
+
+    // 3. Cập nhật trạng thái
+    if (!["Pending", "Completed", "Cancelled", "Confirm"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
+
+    order.status = status;
+    await order.save();
+
+    res
+      .status(200)
+      .json({ message: "Order status updated successfully", order });
+  } catch (error) {
+    console.error("Error updating order status:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+const getAllOrders = async (req, res) => {
+  try {
+    let { userId, role } = req.query;
+
+    if (!userId || !role) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing userId or role in query",
+      });
+    }
+
+    role = Number(role); // convert sang số để so sánh
+
+    let orders = [];
+
+    if (role === 3) {
+      // Admin: tất cả đơn hàng
+      orders = await ServiceOrders.find()
+        .populate("storeId", "name ownerId")
+        .populate("customerId", "profile.name profile.phone account.email");
+    } else if (role === 2) {
+      // Supplier: lấy tất cả đơn hàng của các store mình sở hữu
+      const stores = await Store.find({ ownerId: userId }).select("_id");
+      const storeIds = stores.map((s) => s._id);
+
+      orders = await ServiceOrders.find({ storeId: { $in: storeIds } })
+        .populate("storeId", "name")
+        .populate("customerId", "profile.name profile.phone account.email");
+    } else {
+      // Customer: chỉ xem đơn hàng của mình
+      orders = await ServiceOrders.find({ customerId: userId })
+        .populate("storeId", "name")
+        .populate("customerId", "profile.name profile.phone account.email");
+    }
+
+    return res.status(200).json({
+      success: true,
+      total: orders.length,
+      orders,
+    });
+  } catch (error) {
+    console.error("Error getting orders:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
-    getDetailOrder,
-    getOrderByUserId,
-    createServiceOrder,
-    changeStatusOrder,
-    getNotificationByRoleUser,
-    createServiceOrderByServiceById,
-    getNotificationByRoleSupplier
-}
+  getDetailOrder,
+  getOrderByUserId,
+  createServiceOrder,
+  changeStatusOrder,
+  getNotificationByRoleUser,
+  createServiceOrderByServiceById,
+  getNotificationByRoleSupplier,
+  updateOrderStatus,
+  getAllOrders,
+};

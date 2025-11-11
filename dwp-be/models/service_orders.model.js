@@ -51,7 +51,7 @@ const ServiceOrdersSchema = new mongoose.Schema({
     status: {
         type: String,
         enum: {
-            values: ["Completed", "Cancelled", "Pending"],
+            values: ["Completed", "Cancelled", "Pending", "Confirm"],
             message: "Status must be either 'Completed', 'Cancelled', or 'Pending'.",
         },
         default: "Pending",

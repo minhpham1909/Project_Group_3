@@ -11,7 +11,12 @@ router.get("/getDetail/:orderId", ServiceOrderController.getDetailOrder);
 router.get("/:userId", ServiceOrderController.getOrderByUserId);
 router.post("/create-order/:userId", ServiceOrderController.createServiceOrder);
 router.post("/create-order-id/:serviceId", ServiceOrderController.createServiceOrderByServiceById);
-
+router.put(
+  "/orders/:orderId/status",
+  ServiceOrderController.updateOrderStatus
+);
+// Lấy query params: ?userId=xxx&role=2
+router.get("/", ServiceOrderController.getAllOrders);
 router.put("/:orderId/status-order", ServiceOrderController.changeStatusOrder);
 router.get("/getNotification/:userId", ServiceOrderController.getNotificationByRoleUser);
 router.get("/getNotificationBySupplier/:storeId", ServiceOrderController.getNotificationByRoleSupplier);
