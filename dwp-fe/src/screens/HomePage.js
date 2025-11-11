@@ -120,7 +120,7 @@ useEffect(() => {
       >
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <SLAYME width={160} height={40} />
+            <SLAYME width={160} height={70} style={{ marginTop: -32 }} />
           </View>
 
           <View style={styles.searchSection}>
@@ -461,13 +461,13 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: "center",
-    marginBottom: SPACING.MEDIUM,
   },
   searchSection: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     gap: SPACING.SMALL,
+    marginTop: "40px"
   },
   searchContainer: {
     flex: 1,
