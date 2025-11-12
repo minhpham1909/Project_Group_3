@@ -61,8 +61,15 @@ const UsersSchema = new mongoose.Schema(
           "Phone number must start with 0 and have 10 digits",
         ],
       },
+      address: {
+        type: String,
+      },
       avatar: String,
       gender: Boolean,
+    },
+    isFirstLogin: {
+      type: Boolean,
+      default: false,
     },
     status: {
       type: Number,
