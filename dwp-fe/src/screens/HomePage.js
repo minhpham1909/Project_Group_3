@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Image,
   Linking,
+  RefreshControl, // ✅ Thêm import RefreshControl
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -30,6 +31,7 @@ const HomeScreen = ({ navigation }) => {
   const [filterLocation, setFilterLocation] = useState("All");
   const [filterSearch, setFilterSearch] = useState("");
   const [pendingCount, setPendingCount] = useState(0);
+  const [refreshing, setRefreshing] = useState(false); // ✅ Thêm state cho refresh
 
   // Fetch all stores
   const getAllStore = async () => {
@@ -74,6 +76,13 @@ const HomeScreen = ({ navigation }) => {
     } catch (err) {
       console.error("Error fetching notifications:", err);
     }
+  };
+
+  // ✅ Hàm refresh toàn bộ
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([getAllStore(), fetchNotifications()]);
+    setRefreshing(false);
   };
 
   // Initial fetch
@@ -134,6 +143,15 @@ const HomeScreen = ({ navigation }) => {
       <ScrollView
         contentContainerStyle={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          // ✅ Thêm RefreshControl
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.PRIMARY]} // Màu spinner
+            tintColor={COLORS.PRIMARY} // iOS tint
+          />
+        }
       >
         {/* Header */}
         <View style={styles.header}>

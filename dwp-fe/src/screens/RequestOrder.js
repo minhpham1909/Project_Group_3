@@ -294,8 +294,23 @@ export default function RequestOrder({ navigation }) {
               <Text style={styles.cardTitle}>Chọn dịch vụ</Text>
               <Text style={styles.cardSubtitle}>
                 {selectedService
-                  ? services.find((s) => s._id === selectedService)
-                      ?.service_name || "Chưa chọn"
+                  ? (() => {
+                      const service = services.find(
+                        (s) => s._id === selectedService
+                      );
+                      if (!service) return "Chưa chọn";
+
+                      // Format giá
+                      const priceFormatted =
+                        service.service_price != null
+                          ? new Intl.NumberFormat("vi-VN", {
+                              style: "currency",
+                              currency: "VND",
+                            }).format(service.service_price)
+                          : "";
+
+                      return `${service.service_name} ${priceFormatted}`;
+                    })()
                   : selectedStore
                   ? "Chọn dịch vụ phù hợp"
                   : "Chọn cửa hàng trước"}
@@ -347,6 +362,21 @@ export default function RequestOrder({ navigation }) {
               <Text style={styles.summaryLabel}>Dịch vụ:</Text>
               <Text style={styles.summaryValue}>
                 {services.find((s) => s._id === selectedService)?.service_name}
+              </Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Giá cả:</Text>
+              <Text style={styles.summaryValue}>
+                {services.find((s) => s._id === selectedService)
+                  ?.service_price != null
+                  ? new Intl.NumberFormat("vi-VN", {
+                      style: "currency",
+                      currency: "VND",
+                    }).format(
+                      services.find((s) => s._id === selectedService)
+                        .service_price
+                    )
+                  : ""}{" "}
               </Text>
             </View>
             <View style={styles.summaryItem}>
@@ -469,7 +499,10 @@ export default function RequestOrder({ navigation }) {
                   {services.map((service) => (
                     <Picker.Item
                       key={service._id}
-                      label={service.service_name || "Dịch vụ"}
+                      label={`${service.service_name} - ${new Intl.NumberFormat(
+                        "vi-VN",
+                        { style: "currency", currency: "VND" }
+                      ).format(service.service_price)}`}
                       value={service._id}
                     />
                   ))}

@@ -12,65 +12,33 @@ import {
 import { Calendar } from "react-native-calendars"; // Giả sử đã install react-native-calendars
 import moment from "moment-timezone";
 import { API_ROOT } from "../utils/constant"; // Giữ nguyên nếu cần fetch thực tế
+import axios from "axios";
+import { useSelector } from "react-redux";
 
 export default function OrderCalendar() {
   const [orders, setOrders] = useState([]); // Dữ liệu orders
   const [selectedDate, setSelectedDate] = useState(
     moment().format("YYYY-MM-DD")
   ); // Ngày mặc định là hôm nay
+  const user = useSelector((state) => state.auth.user);
+
   const [loading, setLoading] = useState(true);
   const [markedDates, setMarkedDates] = useState({}); // Đánh dấu ngày có order
-
-  // Dữ liệu mẫu từ BE (có thể thay bằng fetch thực tế)
-  const sampleData = {
-    success: true,
-    total: 1,
-    orders: [
-      {
-        _id: "6913a78050168bfa37f5c9e6",
-        customerId: {
-          account: {
-            email: "tungtxhe171390@fpt.edu.vn",
-          },
-          profile: {
-            name: "Customer 2",
-            phone: "0963101235",
-          },
-          _id: "6791ed19d253eb4da67e099e",
-        },
-        price: 3,
-        storeId: {
-          _id: "6913a74950168bfa37f5c95b",
-        },
-        services: [
-          {
-            serviceId: "6913a74950168bfa37f5c95c",
-            service_name: "okkkkk",
-            service_price: 3,
-            slot_service: 33,
-            _id: "6913a78050168bfa37f5c9e7",
-          },
-        ],
-        orderDate: "2025-11-13T21:16:00.000Z",
-        status: "Completed",
-        createdAt: "2025-11-11T21:15:44.163Z",
-        updatedAt: "2025-11-11T21:50:04.987Z",
-        __v: 0,
-      },
-    ],
-  };
 
   // 🔹 Load dữ liệu (mẫu hoặc fetch)
   const fetchOrders = async () => {
     try {
       setLoading(true);
       // Nếu fetch thực tế:
-      // const response = await axios.get(`${API_ROOT}/service-orders`, { /* params */ });
-      // setOrders(response.data.orders || []);
+      const response = await axios.get(`${API_ROOT}/service-orders`, {
+        params: { userId: user?.id, role: user?.role },
+        headers: { Authorization: `Bearer ${user?.token}` },
+      });
+      setOrders(response.data.orders || []);
 
       // Sử dụng dữ liệu mẫu
-      if (sampleData.success) {
-        setOrders(sampleData.orders);
+      if (response.success) {
+        setOrders(response.orders);
       }
     } catch (err) {
       console.error("❌ Lỗi khi lấy đơn hàng:", err);

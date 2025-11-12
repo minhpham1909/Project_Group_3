@@ -44,7 +44,12 @@ export default function SupplierNotification() {
       });
 
       if (response.data && response.data.success) {
-        setOrders(response.data.orders);
+        // ✅ Sắp xếp theo createdAt mới nhất lên trước (descending)
+        const sortedOrders = response.data.orders.sort(
+          (a, b) =>
+            moment(b.createdAt).valueOf() - moment(a.createdAt).valueOf()
+        );
+        setOrders(sortedOrders);
         setError(null);
       } else {
         setOrders([]);

@@ -28,27 +28,39 @@ const ProductDetail = ({ route, navigation }) => {
   const [loading, setLoading] = useState(true); // Để hiển thị trạng thái loading
   const [error, setError] = useState(null); // Để xử lý lỗi nếu có
 
-  const geocodeAddress = async (address) => {
-    if (!address) return;
-    try {
-      const response = await axios.get(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          address
-        )}&limit=1&addressdetails=1`
-      );
-      if (response.data && response.data.length > 0) {
-        const { lat, lon } = response.data[0];
-        if (!isNaN(lat) && !isNaN(lon)) {
-          setCoordinates({
-            latitude: parseFloat(lat),
-            longitude: parseFloat(lon),
-          });
-        }
-      }
-    } catch (err) {
-      console.error("Geocoding error:", err);
-    }
-  };
+ const geocodeAddress = async (address) => {
+   if (!address) return;
+   try {
+     const response = await axios.get(
+       `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+         address
+       )}&limit=1&addressdetails=1`,
+       {
+         headers: {
+           "User-Agent":
+             "MyReactNativeApp/1.0 (contact: your.email@example.com)", // ✅ Thay 'your.email@example.com' bằng email thật
+         },
+       }
+     );
+     console.log("Geocoding response:", response.data); // ✅ Thêm log để debug
+
+     if (response.data && response.data.length > 0) {
+       const { lat, lon } = response.data[0];
+       if (!isNaN(lat) && !isNaN(lon)) {
+         setCoordinates({
+           latitude: parseFloat(lat),
+           longitude: parseFloat(lon),
+         });
+       } else {
+         console.warn("Invalid lat/lon from geocoding"); // ✅ Log warn nếu fail
+       }
+     } else {
+       console.warn("No geocoding results for address:", address); // ✅ Log nếu empty
+     }
+   } catch (err) {
+     console.error("Geocoding error:", err); // Đã có, nhưng thêm context
+   }
+ };
 
   useEffect(() => {
     const fetchProduct = async () => {

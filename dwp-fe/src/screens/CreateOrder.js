@@ -22,7 +22,7 @@ import { API_ROOT, COLORS, FONTS, SPACING } from "../utils/constant";
 const CreateOrder = ({ route, navigation }) => {
   const [selectedDate, setSelectedDate] = useState("");
   const [orderTime, setOrderTime] = useState("");
-  const [slotService, setSlotService] = useState("");
+  const [slotService, setSlotService] = useState("1");
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [service, setService] = useState({});
   const [servicePrice, setServicePrice] = useState("");
@@ -110,11 +110,6 @@ const CreateOrder = ({ route, navigation }) => {
 
     if (!orderTime) {
       Alert.alert("Thông báo", "Vui lòng chọn thời gian");
-      return;
-    }
-
-    if (!slotService || slotService <= 0) {
-      Alert.alert("Thông báo", "Vui lòng nhập số người (lớn hơn 0)");
       return;
     }
 
@@ -234,7 +229,7 @@ const CreateOrder = ({ route, navigation }) => {
         </View>
 
         {/* Slot Section */}
-        <View style={styles.section}>
+        {/* <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="people-outline" size={24} color={COLORS.PRIMARY} />
             <Text style={styles.sectionTitle}>Số người</Text>
@@ -253,7 +248,7 @@ const CreateOrder = ({ route, navigation }) => {
             />
             <Ionicons name="people" size={20} color={COLORS.GRAY} style={styles.inputIcon} />
           </View>
-        </View>
+        </View> */}
 
         {/* Date Section */}
         <View style={styles.section}>

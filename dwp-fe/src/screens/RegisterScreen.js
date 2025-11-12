@@ -35,6 +35,8 @@ export default function RegisterScreen({ navigation }) {
   }, [lastName, firstName]);
 
   const validateForm = () => {
+    const phoneRegex = /^0\d{9}$/; // Bắt đầu bằng 0 và có 10 chữ số
+
     if (!firstName.trim()) {
       setErrorMessage("Vui lòng nhập tên");
       return false;
@@ -45,6 +47,12 @@ export default function RegisterScreen({ navigation }) {
     }
     if (!phone.trim()) {
       setErrorMessage("Vui lòng nhập số điện thoại");
+      return false;
+    }
+    if (!phoneRegex.test(phone.trim())) {
+      setErrorMessage(
+        "Số điện thoại không hợp lệ (phải bắt đầu bằng 0 và có 10 chữ số)"
+      );
       return false;
     }
     if (!email || !email.includes("@")) {
@@ -93,7 +101,8 @@ export default function RegisterScreen({ navigation }) {
       })
       .catch((error) => {
         const errorMessage =
-          error.response?.data?.message || "Đăng ký thất bại. Vui lòng thử lại.";
+          error.response?.data?.message ||
+          "Đăng ký thất bại. Vui lòng thử lại.";
         console.error("Lỗi:", errorMessage);
         setErrorMessage(errorMessage);
         setModalVisible(true);
@@ -119,7 +128,9 @@ export default function RegisterScreen({ navigation }) {
             <CutMate width={180} height={80} />
           </View>
           <Text style={styles.title}>Tạo tài khoản mới</Text>
-          <Text style={styles.subtitle}>Đăng ký để bắt đầu sử dụng CutMate</Text>
+          <Text style={styles.subtitle}>
+            Đăng ký để bắt đầu sử dụng CutMate
+          </Text>
         </View>
 
         <View style={styles.avatarContainer}>
@@ -137,7 +148,12 @@ export default function RegisterScreen({ navigation }) {
         <View style={styles.formContainer}>
           <View style={styles.inputRow}>
             <View style={styles.inputWrapper}>
-              <Ionicons name="person-outline" size={20} color={COLORS.GRAY} style={styles.inputIcon} />
+              <Ionicons
+                name="person-outline"
+                size={20}
+                color={COLORS.GRAY}
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.input}
                 placeholder="Họ"
@@ -151,7 +167,12 @@ export default function RegisterScreen({ navigation }) {
               />
             </View>
             <View style={[styles.inputWrapper, { marginLeft: SPACING.SMALL }]}>
-              <Ionicons name="person-outline" size={20} color={COLORS.GRAY} style={styles.inputIcon} />
+              <Ionicons
+                name="person-outline"
+                size={20}
+                color={COLORS.GRAY}
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.input}
                 placeholder="Tên"
@@ -167,7 +188,12 @@ export default function RegisterScreen({ navigation }) {
           </View>
 
           <View style={styles.inputWrapper}>
-            <Ionicons name="call-outline" size={20} color={COLORS.GRAY} style={styles.inputIcon} />
+            <Ionicons
+              name="call-outline"
+              size={20}
+              color={COLORS.GRAY}
+              style={styles.inputIcon}
+            />
             <TextInput
               style={styles.input}
               placeholder="Số điện thoại"
@@ -182,7 +208,12 @@ export default function RegisterScreen({ navigation }) {
           </View>
 
           <View style={styles.inputWrapper}>
-            <Ionicons name="mail-outline" size={20} color={COLORS.GRAY} style={styles.inputIcon} />
+            <Ionicons
+              name="mail-outline"
+              size={20}
+              color={COLORS.GRAY}
+              style={styles.inputIcon}
+            />
             <TextInput
               style={styles.input}
               placeholder="Email"
@@ -199,7 +230,12 @@ export default function RegisterScreen({ navigation }) {
           </View>
 
           <View style={styles.inputWrapper}>
-            <Ionicons name="lock-closed-outline" size={20} color={COLORS.GRAY} style={styles.inputIcon} />
+            <Ionicons
+              name="lock-closed-outline"
+              size={20}
+              color={COLORS.GRAY}
+              style={styles.inputIcon}
+            />
             <TextInput
               style={styles.input}
               placeholder="Mật khẩu"
@@ -215,7 +251,12 @@ export default function RegisterScreen({ navigation }) {
           </View>
 
           <View style={styles.inputWrapper}>
-            <Ionicons name="lock-closed-outline" size={20} color={COLORS.GRAY} style={styles.inputIcon} />
+            <Ionicons
+              name="lock-closed-outline"
+              size={20}
+              color={COLORS.GRAY}
+              style={styles.inputIcon}
+            />
             <TextInput
               style={styles.input}
               placeholder="Xác nhận mật khẩu"

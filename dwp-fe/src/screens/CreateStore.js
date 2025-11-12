@@ -34,7 +34,7 @@ const CreateStore = ({ navigation }) => {
   const [showNewServiceForm, setShowNewServiceForm] = useState(false);
   const [newServiceName, setNewServiceName] = useState("");
   const [newServicePrice, setNewServicePrice] = useState("");
-  const [newServiceSlot, setNewServiceSlot] = useState("");
+  const [newServiceSlot, setNewServiceSlot] = useState("1");
 
   // Loading
   const [updating, setUpdating] = useState(false);
@@ -106,19 +106,45 @@ const CreateStore = ({ navigation }) => {
     ]);
   };
 
+  // ✅ Helper: Validate service name (trim, min 3, max 100)
+  const validateServiceName = (name) => {
+    const trimmed = name.trim();
+    if (trimmed.length < 3) {
+      return "Tên dịch vụ phải có ít nhất 3 ký tự.";
+    }
+    if (trimmed.length > 100) {
+      return "Tên dịch vụ không được vượt quá 100 ký tự.";
+    }
+    return null;
+  };
+
+  // ✅ Helper: Validate service price (number >= 0)
+  const validateServicePrice = (priceStr) => {
+    const price = parseFloat(priceStr);
+    if (isNaN(price) || price < 0) {
+      return "Giá dịch vụ phải là số >= 0.";
+    }
+    return null;
+  };
+
   // Add service
   const addNewService = () => {
-    if (
-      !newServiceName.trim() ||
-      !newServicePrice.trim() ||
-      !newServiceSlot.trim()
-    ) {
-      Alert.alert("Lỗi", "Vui lòng nhập tên, giá và số slot dịch vụ.");
+    // ✅ Validate service name
+    const nameError = validateServiceName(newServiceName);
+    if (nameError) {
+      Alert.alert("Lỗi", nameError);
+      return;
+    }
+
+    // ✅ Validate service price
+    const priceError = validateServicePrice(newServicePrice);
+    if (priceError) {
+      Alert.alert("Lỗi", priceError);
       return;
     }
 
     const newService = {
-      service_name: newServiceName,
+      service_name: newServiceName.trim(),
       service_price: parseFloat(newServicePrice),
       slot_service: parseFloat(newServiceSlot),
     };
@@ -146,23 +172,98 @@ const CreateStore = ({ navigation }) => {
 
   const updateService = (index, field, value) => {
     const newServices = [...services];
-    if (field === "name") newServices[index].service_name = value;
-    if (field === "price")
+    if (field === "name") {
+      // ✅ Validate on update
+      const nameError = validateServiceName(value);
+      if (nameError) {
+        Alert.alert("Lỗi", nameError);
+        return;
+      }
+      newServices[index].service_name = value.trim();
+    }
+    if (field === "price") {
+      const priceError = validateServicePrice(value);
+      if (priceError) {
+        Alert.alert("Lỗi", priceError);
+        return;
+      }
       newServices[index].service_price = parseFloat(value) || 0;
+    }
     if (field === "slot")
       newServices[index].slot_service = parseFloat(value) || 0;
     setServices(newServices);
   };
 
+  // ✅ Helper: Validate store name (trim, min 3, max 100)
+  const validateStoreName = (name) => {
+    const trimmed = name.trim();
+    if (trimmed.length < 3) {
+      return "Tên cửa hàng phải có ít nhất 3 ký tự.";
+    }
+    if (trimmed.length > 100) {
+      return "Tên cửa hàng không được vượt quá 100 ký tự.";
+    }
+    return null;
+  };
+
+  // ✅ Helper: Validate address (trim, min 3, max 100)
+  const validateAddress = (addr) => {
+    const trimmed = addr.trim();
+    if (trimmed.length < 3) {
+      return "Địa chỉ phải có ít nhất 3 ký tự.";
+    }
+    if (trimmed.length > 100) {
+      return "Địa chỉ không được vượt quá 100 ký tự.";
+    }
+    return null;
+  };
+
+  // ✅ Helper: Validate all services
+  const validateAllServices = () => {
+    for (let i = 0; i < services.length; i++) {
+      const service = services[i];
+      const nameError = validateServiceName(service.service_name);
+      if (nameError) return `Dịch vụ ${i + 1}: ${nameError}`;
+      const priceError = validateServicePrice(
+        service.service_price?.toString()
+      );
+      if (priceError) return `Dịch vụ ${i + 1}: ${priceError}`;
+    }
+    if (services.length === 0) {
+      return "Phải có ít nhất 1 dịch vụ.";
+    }
+    return null;
+  };
+
   const createStore = async () => {
-    if (!nameShop.trim() || !address.trim()) {
-      Alert.alert("Lỗi", "Vui lòng điền tên cửa hàng và địa chỉ.");
+    // ✅ Validate store name
+    const nameError = validateStoreName(nameShop);
+    if (nameError) {
+      Alert.alert("Lỗi", nameError);
       return;
     }
+
+    // ✅ Validate address
+    const addrError = validateAddress(address);
+    if (addrError) {
+      Alert.alert("Lỗi", addrError);
+      return;
+    }
+
+    // ✅ Validate images (at least 1)
     if (newImages.length === 0) {
       Alert.alert("Lỗi", "Vui lòng thêm ít nhất 1 ảnh.");
       return;
     }
+
+    // ✅ Validate all services
+    const servicesError = validateAllServices();
+    if (servicesError) {
+      Alert.alert("Lỗi", servicesError);
+      return;
+    }
+
+    // ✅ Validate user.id
     if (!user?.id) {
       Alert.alert("Lỗi", "Không tìm thấy thông tin người dùng.");
       return;
@@ -171,8 +272,8 @@ const CreateStore = ({ navigation }) => {
     setUpdating(true);
     try {
       const formData = new FormData();
-      formData.append("nameShop", nameShop);
-      formData.append("address", address);
+      formData.append("nameShop", nameShop.trim());
+      formData.append("address", address.trim());
       formData.append("ownerId", user.id);
       formData.append("services", JSON.stringify(services));
 
@@ -197,7 +298,7 @@ const CreateStore = ({ navigation }) => {
 
       if (response.data?.store) {
         Alert.alert("Thành công", "Tạo cửa hàng thành công!");
-       navigation.goBack({ refresh: true });
+        navigation.goBack({ refresh: true });
       }
     } catch (error) {
       console.error(error.response?.data || error);
@@ -232,17 +333,20 @@ const CreateStore = ({ navigation }) => {
             placeholder="0"
           />
         </View>
+        {/*
         <View style={styles.serviceField}>
           <Text style={styles.fieldLabel}>Số slot</Text>
-          <TextInput
+           <TextInput
             style={styles.serviceInput}
             value={item.slot_service?.toString() || ""}
             keyboardType="numeric"
             onChangeText={(value) => updateService(index, "slot", value)}
             placeholder="0"
-          />
+          /> 
         </View>
+        */}
       </View>
+
       <TouchableOpacity
         style={styles.deleteServiceButton}
         onPress={() => deleteService(index)}
@@ -355,7 +459,7 @@ const CreateStore = ({ navigation }) => {
                   placeholder="0"
                 />
               </View>
-              <View style={styles.inputGroup}>
+              {/* <View style={styles.inputGroup}>
                 <Text style={styles.label}>Số slot</Text>
                 <TextInput
                   style={styles.textInput}
@@ -364,7 +468,7 @@ const CreateStore = ({ navigation }) => {
                   keyboardType="numeric"
                   placeholder="0"
                 />
-              </View>
+              </View> */}
               <TouchableOpacity
                 style={styles.addButton}
                 onPress={addNewService}
