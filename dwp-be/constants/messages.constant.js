@@ -19,8 +19,9 @@ Kính gửi ${username},
 Chúc mừng! Bạn đã đặt thành công dịch vụ tại StyleMe!
 
 Thông tin chi tiết về lịch hẹn của bạn:
-- Lịch đặt: ${authCode.message}
+- Trạng thái: ${authCode.message}
 - Dịch vụ: ${authCode.service_name}
+- Mức phí: ${authCode.service_price}
 - Cửa hàng: ${authCode.store_name}
 - Thời gian: ${
     authCode.date

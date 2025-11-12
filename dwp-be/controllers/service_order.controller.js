@@ -64,6 +64,7 @@ const createServiceOrder = async (req, res) => {
             message: "Order created successfully",
             order: newOrder,
             service_name: services.map(service => service.service_name),
+            service_price: services.map(service => service.service_price),
             store_name: nameShop.nameShop,
             date: orderDate
         };
@@ -125,6 +126,7 @@ const createServiceOrderByServiceById = async (req, res) => {
             order: newOrder,
             service_name: service.service_name,
             store_name: store.nameShop,
+            service_price: service.service_price,
             date: order_time
         };
 
