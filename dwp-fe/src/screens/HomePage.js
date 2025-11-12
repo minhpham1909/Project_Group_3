@@ -7,23 +7,25 @@ import {
   TextInput,
   TouchableOpacity,
   Image,
-  Linking,
-  RefreshControl, // ✅ Thêm import RefreshControl
-  Modal, // ✅ Thêm import Modal
-  FlatList, // ✅ Thêm import FlatList cho danh sách thành phố
-  ActivityIndicator, // ✅ Thêm import ActivityIndicator cho loading
+  RefreshControl,
+  Modal,
+  FlatList,
+  Dimensions,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
-import { useSelector, useDispatch } from "react-redux"; // ✅ Thêm useDispatch nếu cần update Redux
+import { useSelector, useDispatch } from "react-redux";
 import CutMate from "../../assets/CutMate.svg";
 import { API_ROOT, COLORS, FONTS, SPACING } from "../utils/constant";
+
+const { width } = Dimensions.get("window");
 
 const HomeScreen = ({ navigation }) => {
   // Redux state
   const user = useSelector((state) => state.auth.user);
-  const dispatch = useDispatch(); // ✅ Thêm dispatch nếu cần update user trong Redux
+  const dispatch = useDispatch();
   const role = user?.role;
   const userId = user?.id;
   const token = user?.token;
@@ -35,25 +37,56 @@ const HomeScreen = ({ navigation }) => {
   const [filterLocation, setFilterLocation] = useState("All");
   const [filterSearch, setFilterSearch] = useState("");
   const [pendingCount, setPendingCount] = useState(0);
-  const [refreshing, setRefreshing] = useState(false); // ✅ Thêm state cho refresh
+  const [refreshing, setRefreshing] = useState(false);
 
-  // ✅ Thêm state cho modal địa chỉ
+  // Modal state
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [selectedCity, setSelectedCity] = useState("");
-  const [userAddress, setUserAddress] = useState("");
+  const [selectedDistrict, setSelectedDistrict] = useState("");
   const [isFirstLogin, setIsFirstLogin] = useState(false);
-  const [updatingAddress, setUpdatingAddress] = useState(false); // Loading khi update
+  const [updatingAddress, setUpdatingAddress] = useState(false);
+  const [step, setStep] = useState(1);
 
-  // Cities list
+  // Cities list with emojis
   const cities = [
-    "Hà Nội",
-    "TP. Hồ Chí Minh",
-    "Đà Nẵng",
-    "Hải Phòng",
-    "Cần Thơ",
-    "Nha Trang",
-    "Đà Lạt",
+    { name: "Hà Nội", icon: "🏛️" },
+    { name: "TP. Hồ Chí Minh", icon: "🌆" },
+    { name: "Đà Nẵng", icon: "🌊" },
+    { name: "Hải Phòng", icon: "⚓" },
+    { name: "Cần Thơ", icon: "🌾" },
+    { name: "Nha Trang", icon: "🏖️" },
+    { name: "Đà Lạt", icon: "🌸" },
   ];
+
+  const districts = {
+    "Hà Nội": [
+      "Ba Đình",
+      "Cầu Giấy",
+      "Hoàn Kiếm",
+      "Đống Đa",
+      "Hai Bà Trưng",
+      "Thanh Xuân",
+    ],
+    "TP. Hồ Chí Minh": [
+      "Quận 1",
+      "Quận 3",
+      "Bình Thạnh",
+      "Thủ Đức",
+      "Phú Nhuận",
+      "Tân Bình",
+    ],
+    "Đà Nẵng": [
+      "Hải Châu",
+      "Sơn Trà",
+      "Ngũ Hành Sơn",
+      "Thanh Khê",
+      "Liên Chiểu",
+    ],
+    "Hải Phòng": ["Hồng Bàng", "Lê Chân", "Ngô Quyền", "Kiến An"],
+    "Cần Thơ": ["Ninh Kiều", "Bình Thủy", "Cái Răng", "Ô Môn"],
+    "Nha Trang": ["Vĩnh Hải", "Vĩnh Hòa", "Phước Hải", "Phước Long"],
+    "Đà Lạt": ["Phường 1", "Phường 2", "Phường 3", "Phường 4"],
+  };
 
   // Fetch all stores
   const getAllStore = async () => {
@@ -66,12 +99,11 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
-  // ✅ Hoàn thiện hàm getUser để fetch và update user data
+  // Get user data
   const getUser = async () => {
-    // if (!userId || !token) return;
     try {
       const response = await axios.get(`${API_ROOT}/user/${userId}`);
-console.log("user: ",response.data);
+      console.log("user: ", response.data);
 
       if (response.status === 200 && response.data) {
         setIsFirstLogin(response.data.isFirstLogin);
@@ -83,11 +115,10 @@ console.log("user: ",response.data);
   };
 
   useEffect(() => {
-    // getAllStore();
     getUser();
   }, []);
 
-  // Fetch notifications / orders based on role
+  // Fetch notifications
   const fetchNotifications = async () => {
     if (!user || !role) return;
 
@@ -95,20 +126,17 @@ console.log("user: ",response.data);
       let response;
 
       if (role === 1) {
-        // Customer
         response = await axios.get(
           `${API_ROOT}/service-orders/getNotification/${userId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
       } else if (role === 2) {
-        // Supplier / Store owner
         response = await axios.get(`${API_ROOT}/service-orders`, {
           params: { userId, role },
           headers: { Authorization: `Bearer ${token}` },
         });
       }
 
-      // Check response
       if (response?.data?.orders && Array.isArray(response.data.orders)) {
         const orders = response.data.orders;
         const pending = orders.filter((o) => o.status === "Pending").length;
@@ -121,28 +149,28 @@ console.log("user: ",response.data);
     }
   };
 
-  // ✅ Hàm update địa chỉ người dùng
+  // Update user address
   const updateUserAddress = async () => {
-    if (!selectedCity || !userAddress.trim()) {
-      alert("Vui lòng chọn thành phố và nhập địa chỉ cụ thể.");
+    if (!selectedCity || !selectedDistrict) {
+      alert("Vui lòng chọn đầy đủ thành phố và quận/huyện.");
       return;
     }
 
     setUpdatingAddress(true);
     try {
-      const fullAddress = `${userAddress}, ${selectedCity}`;
+      const fullAddress = `${selectedDistrict}, ${selectedCity}`;
       const response = await axios.put(
-        `${API_ROOT}/user/update-address/${userId}`, // Giả sử endpoint này tồn tại, điều chỉnh nếu cần
-        { address: fullAddress, isFirstLogin: false }, // Update cả isFirstLogin
+        `${API_ROOT}/user/update-address/${userId}`,
+        { address: fullAddress, isFirstLogin: false },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (response.status === 200) {
-        // Update Redux nếu cần (giả sử có action updateUser)
-        // dispatch(updateUser({ ...user, address: fullAddress, isFirstLogin: false }));
         setShowAddressModal(false);
+        setStep(1);
+        setSelectedCity("");
+        setSelectedDistrict("");
         alert("Địa chỉ đã được cập nhật thành công!");
-        // Fetch lại user để sync state
         await getUser();
       }
     } catch (error) {
@@ -153,7 +181,7 @@ console.log("user: ",response.data);
     }
   };
 
-  // ✅ Hàm refresh toàn bộ
+  // Refresh
   const onRefresh = async () => {
     setRefreshing(true);
     await Promise.all([getAllStore(), fetchNotifications(), getUser()]);
@@ -164,16 +192,14 @@ console.log("user: ",response.data);
   useEffect(() => {
     getAllStore();
     if (userId && token) {
-      getUser(); // ✅ Gọi getUser để fetch dữ liệu user mới nhất
+      getUser();
     }
   }, [userId, token]);
 
-  // Fetch notifications when user is ready
   useEffect(() => {
     if (user) fetchNotifications();
   }, [user]);
 
-  // ✅ Kiểm tra isFirstLogin và hiển thị modal (sau khi fetch user)
   useEffect(() => {
     if (isFirstLogin) {
       setShowAddressModal(true);
@@ -184,7 +210,6 @@ console.log("user: ",response.data);
   useEffect(() => {
     let filtered = [...stores];
 
-    // Search filter
     if (filterSearch.trim()) {
       filtered = filtered
         .map((store) => {
@@ -199,14 +224,12 @@ console.log("user: ",response.data);
         .filter(Boolean);
     }
 
-    // Location filter
     if (filterLocation !== "All") {
       filtered = filtered.filter((store) =>
         store.address?.toLowerCase().includes(filterLocation.toLowerCase())
       );
     }
 
-    // Price sort
     filtered.forEach((store) => {
       store.services?.sort((a, b) =>
         filterPrice === "lowToHigh"
@@ -218,28 +241,76 @@ console.log("user: ",response.data);
     setFilteredStores(filtered);
   }, [filterSearch, filterPrice, filterLocation, stores]);
 
-  // Navigate to service detail
   const openServiceDetail = (serviceId) => {
     navigation.navigate("ProductDetail", { serviceId });
   };
 
-  // Render item thành phố
+  const handleCitySelect = (cityName) => {
+    setSelectedCity(cityName);
+    setStep(2);
+  };
+
+  const handleDistrictSelect = (district) => {
+    setSelectedDistrict(district);
+  };
+
+  const handleBack = () => {
+    setStep(1);
+    setSelectedDistrict("");
+  };
+
+  const handleConfirm = () => {
+    updateUserAddress();
+  };
+
+  const handleCloseModal = () => {
+    if (isFirstLogin) {
+      Alert.alert("Xác nhận", "Bạn có chắc muốn bỏ qua bước chọn địa điểm?", [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Bỏ qua",
+          onPress: () => {
+            setShowAddressModal(false);
+            setStep(1);
+            setSelectedCity("");
+            setSelectedDistrict("");
+          },
+        },
+      ]);
+    } else {
+      setShowAddressModal(false);
+      setStep(1);
+      setSelectedCity("");
+      setSelectedDistrict("");
+    }
+  };
+
+  // Render city item
   const renderCityItem = ({ item }) => (
     <TouchableOpacity
       style={[
-        styles.modalItem,
-        selectedCity === item && styles.selectedModalItem,
+        styles.cityCard,
+        selectedCity === item.name && styles.cityCardSelected,
       ]}
-      onPress={() => setSelectedCity(item)}
+      onPress={() => handleCitySelect(item.name)}
+      activeOpacity={0.7}
     >
-      <Text
-        style={[
-          styles.modalItemText,
-          selectedCity === item && styles.selectedModalItemText,
-        ]}
-      >
-        {item}
-      </Text>
+      <View style={styles.cityCardContent}>
+        <Text style={styles.cityIcon}>{item.icon}</Text>
+        <Text
+          style={[
+            styles.cityName,
+            selectedCity === item.name && styles.cityNameSelected,
+          ]}
+        >
+          {item.name}
+        </Text>
+      </View>
+      <Ionicons
+        name="chevron-forward"
+        size={20}
+        color={selectedCity === item.name ? COLORS.PRIMARY : "#999"}
+      />
     </TouchableOpacity>
   );
 
@@ -249,12 +320,11 @@ console.log("user: ",response.data);
         contentContainerStyle={styles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          // ✅ Thêm RefreshControl
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[COLORS.PRIMARY]} // Màu spinner
-            tintColor={COLORS.PRIMARY} // iOS tint
+            colors={[COLORS.PRIMARY]}
+            tintColor={COLORS.PRIMARY}
           />
         }
       >
@@ -264,7 +334,6 @@ console.log("user: ",response.data);
             <CutMate width={160} height={80} style={{ marginTop: -32 }} />
           </View>
 
-          {/* Search and Icons */}
           <View style={styles.searchSection}>
             <View style={styles.searchContainer}>
               <Ionicons
@@ -392,145 +461,287 @@ console.log("user: ",response.data);
               </Text>
             </View>
           ) : (
-            <View style={styles.productRow}>
-              {filteredStores.map((store) =>
-                store.services?.map((service) => (
-                  <TouchableOpacity
-                    style={styles.productContainer}
-                    key={service._id}
-                    onPress={() => openServiceDetail(service._id)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.imageContainer}>
-                      <Image
-                        source={{
-                          uri:
-                            store.image?.[0] ||
-                            "https://via.placeholder.com/200",
-                        }}
-                        style={styles.productImage}
-                      />
-                      <View style={styles.priceBadge}>
-                        <Text style={styles.priceBadgeText}>
-                          {service.service_price?.toLocaleString("vi-VN")} VND
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={styles.productDetails}>
-                      <Text style={styles.productTitle} numberOfLines={2}>
-                        {service.service_name}
-                      </Text>
-                      <View style={styles.storeInfo}>
-                        <Ionicons
-                          name="storefront-outline"
-                          size={14}
-                          color={COLORS.GRAY}
+            <>
+              <View style={styles.productRow}>
+                {filteredStores.map((store) =>
+                  store.services?.map((service) => (
+                    <TouchableOpacity
+                      style={styles.productContainer}
+                      key={service._id}
+                      onPress={() => openServiceDetail(service._id)}
+                      activeOpacity={0.8}
+                    >
+                      <View style={styles.imageContainer}>
+                        <Image
+                          source={{
+                            uri:
+                              store.image?.[0] ||
+                              "https://via.placeholder.com/200",
+                          }}
+                          style={styles.productImage}
                         />
-                        <Text style={styles.storeName} numberOfLines={1}>
-                          {store.nameShop}
-                        </Text>
+                        <View style={styles.priceBadge}>
+                          <Text style={styles.priceBadgeText}>
+                            {service.service_price?.toLocaleString("vi-VN")} VND
+                          </Text>
+                        </View>
                       </View>
-                      <View style={styles.locationInfo}>
-                        <Ionicons
-                          name="location-outline"
-                          size={14}
-                          color={COLORS.GRAY}
-                        />
-                        <Text style={styles.locationText} numberOfLines={1}>
-                          {store.address}
+                      <View style={styles.productDetails}>
+                        <Text style={styles.productTitle} numberOfLines={2}>
+                          {service.service_name}
                         </Text>
+                        <View style={styles.storeInfo}>
+                          <Ionicons
+                            name="storefront-outline"
+                            size={14}
+                            color={COLORS.GRAY}
+                          />
+                          <Text style={styles.storeName} numberOfLines={1}>
+                            {store.nameShop}
+                          </Text>
+                        </View>
+                        <View style={styles.locationInfo}>
+                          <Ionicons
+                            name="location-outline"
+                            size={14}
+                            color={COLORS.GRAY}
+                          />
+                          <Text style={styles.locationText} numberOfLines={1}>
+                            {store.address}
+                          </Text>
+                        </View>
                       </View>
-                    </View>
-                  </TouchableOpacity>
-                ))
-              )}
-            </View>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </View>
+
+              {/* New Advice Text */}
+              {/* Smart Advice Card */}
+              <TouchableOpacity
+                style={styles.adviceCard}
+                onPress={() => navigation.navigate("ChatBot")}
+              >
+                <Ionicons
+                  name="bulb-outline"
+                  size={24}
+                  color={COLORS.PRIMARY}
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={styles.adviceCardText}>
+                  Băn khoăn không biết chọn gì?{" "}
+                  <Text style={styles.adviceCardHighlight}>StyleMe Brain</Text>{" "}
+                  sẽ gợi ý cho bạn!
+                </Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
-
-        {/* ... Các section blog, tips giữ nguyên ... */}
       </ScrollView>
 
-      {/* ✅ Modal chọn địa chỉ kiểu bottom sheet */}
+      {/* Improved Modal */}
       <Modal
         visible={showAddressModal}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowAddressModal(false)}
+        onRequestClose={handleCloseModal}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            {selectedCity ? (
-              <Text style={styles.modalTitle}>
-                Nhập địa chỉ tại {selectedCity}
-              </Text>
-            ) : (
-              <Text style={styles.modalTitle}>Chọn thành phố</Text>
-            )}
-            {!selectedCity ? (
-              <FlatList
-                data={cities}
-                keyExtractor={(item) => item}
-                renderItem={renderCityItem}
-                showsVerticalScrollIndicator={false}
-              />
-            ) : (
-              <ScrollView
-                style={styles.addressScroll}
-                showsVerticalScrollIndicator={false}
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <TouchableOpacity
+                onPress={handleCloseModal}
+                style={styles.skipButton}
               >
-                <Text style={styles.modalSubtitle}>
-                  Nhập địa chỉ chi tiết (số nhà, đường, phường...)
-                </Text>
-                <TextInput
-                  style={styles.addressInput}
-                  placeholder="Ví dụ: 123 Đường ABC, Quận 1"
-                  placeholderTextColor={COLORS.GRAY}
-                  value={userAddress}
-                  onChangeText={setUserAddress}
-                  multiline
-                  numberOfLines={3}
-                  textAlignVertical="top"
-                />
-              </ScrollView>
-            )}
-            <View style={styles.modalBottom}>
-              {selectedCity ? (
-                <View style={styles.addressButtons}>
+                <Text style={styles.skipButtonText}>Bỏ qua</Text>
+              </TouchableOpacity>
+              <View style={styles.modalHeaderTop}>
+                <View style={styles.modalIconWrapper}>
+                  <Ionicons name="location" size={24} color="#fff" />
+                </View>
+                <View style={styles.modalHeaderText}>
+                  <Text style={styles.modalTitle}>Chọn địa điểm của bạn</Text>
+                  <Text style={styles.modalSubtitle}>
+                    {step === 1 ? "Chọn thành phố" : "Chọn quận/huyện"}
+                  </Text>
+                </View>
+                {!isFirstLogin && (
                   <TouchableOpacity
-                    style={styles.changeCityButton}
-                    onPress={() => {
-                      setSelectedCity("");
-                      setUserAddress("");
-                    }}
+                    onPress={handleCloseModal}
+                    style={styles.closeButton}
                   >
-                    <Text style={styles.changeCityText}>
-                      Thay đổi thành phố
-                    </Text>
+                    <Ionicons name="close" size={24} color="#666" />
                   </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Progress */}
+              <View style={styles.progressContainer}>
+                <View style={styles.stepIndicator}>
+                  <View
+                    style={[styles.stepCircle, step >= 1 && styles.stepActive]}
+                  >
+                    {step > 1 ? (
+                      <Ionicons name="checkmark" size={16} color="#fff" />
+                    ) : (
+                      <Text
+                        style={[
+                          styles.stepNumber,
+                          step >= 1 && styles.stepNumberActive,
+                        ]}
+                      >
+                        1
+                      </Text>
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.stepLabel,
+                      step >= 1 && styles.stepLabelActive,
+                    ]}
+                  >
+                    Thành phố
+                  </Text>
+                </View>
+
+                <View style={styles.progressBarContainer}>
+                  <View style={styles.progressBar}>
+                    <View
+                      style={[
+                        styles.progressFill,
+                        { width: step === 1 ? "0%" : "100%" },
+                      ]}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.stepIndicator}>
+                  <View
+                    style={[styles.stepCircle, step >= 2 && styles.stepActive]}
+                  >
+                    <Text
+                      style={[
+                        styles.stepNumber,
+                        step >= 2 && styles.stepNumberActive,
+                      ]}
+                    >
+                      2
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.stepLabel,
+                      step >= 2 && styles.stepLabelActive,
+                    ]}
+                  >
+                    Khu vực
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Content */}
+            <View style={styles.modalContent}>
+              {step === 1 ? (
+                <FlatList
+                  data={cities}
+                  keyExtractor={(item) => item.name}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.listContent}
+                  renderItem={renderCityItem}
+                />
+              ) : (
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.districtScrollContent}
+                >
+                  <View style={styles.districtContainer}>
+                    <View style={styles.selectedCityBadge}>
+                      <Ionicons
+                        name="location"
+                        size={16}
+                        color={COLORS.PRIMARY}
+                      />
+                      <Text style={styles.selectedCityText}>
+                        Đã chọn: {selectedCity}
+                      </Text>
+                    </View>
+
+                    <View style={styles.districtGrid}>
+                      {(districts[selectedCity] || []).map((district) => (
+                        <TouchableOpacity
+                          key={district}
+                          style={[
+                            styles.districtCard,
+                            selectedDistrict === district &&
+                              styles.districtCardSelected,
+                          ]}
+                          onPress={() => handleDistrictSelect(district)}
+                          activeOpacity={0.7}
+                        >
+                          <Text
+                            style={[
+                              styles.districtText,
+                              selectedDistrict === district &&
+                                styles.districtTextSelected,
+                            ]}
+                          >
+                            {district}
+                          </Text>
+                          {selectedDistrict === district && (
+                            <View style={styles.checkIcon}>
+                              <Ionicons
+                                name="checkmark-circle"
+                                size={20}
+                                color="#fff"
+                              />
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </ScrollView>
+              )}
+            </View>
+
+            {/* Footer */}
+            <View style={styles.modalFooter}>
+              {step === 2 ? (
+                <View style={styles.footerButtons}>
+                  <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={handleBack}
+                  >
+                    <Ionicons name="chevron-back" size={20} color="#666" />
+                    <Text style={styles.backButtonText}>Quay lại</Text>
+                  </TouchableOpacity>
+
                   <TouchableOpacity
                     style={[
                       styles.confirmButton,
-                      (!userAddress.trim() || updatingAddress) &&
+                      (!selectedDistrict || updatingAddress) &&
                         styles.confirmButtonDisabled,
                     ]}
-                    onPress={updateUserAddress}
-                    disabled={!userAddress.trim() || updatingAddress}
+                    onPress={handleConfirm}
+                    disabled={!selectedDistrict || updatingAddress}
+                    activeOpacity={0.8}
                   >
-                    {updatingAddress ? (
-                      <ActivityIndicator color={COLORS.WHITE} />
-                    ) : (
-                      <Text style={styles.confirmButtonText}>Xác nhận</Text>
-                    )}
+                    <Text style={styles.confirmButtonText}>
+                      {updatingAddress ? "Đang lưu..." : "Xác nhận"}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               ) : (
-                <TouchableOpacity
-                  style={styles.modalCloseButton}
-                  onPress={() => setShowAddressModal(false)}
-                >
-                  <Text style={styles.modalCloseText}>Đóng</Text>
-                </TouchableOpacity>
+                !isFirstLogin && (
+                  <TouchableOpacity
+                    style={styles.closeFooterButton}
+                    onPress={handleCloseModal}
+                  >
+                    <Text style={styles.closeFooterButtonText}>Đóng</Text>
+                  </TouchableOpacity>
+                )
               )}
             </View>
           </View>
@@ -540,10 +751,9 @@ console.log("user: ",response.data);
   );
 };
 
-// Blogs và styles giữ nguyên, thêm styles cho modal
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.BACKGROUND },
-  scrollView: { padding: SPACING.MEDIUM, paddingBottom: SPACING.XLARGE },
+  scrollView: { padding: 4, paddingBottom: 4 },
   header: { marginBottom: SPACING.LARGE },
   logoContainer: { alignItems: "center" },
   searchSection: {
@@ -551,7 +761,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     gap: SPACING.SMALL,
-    marginTop: "40px",
   },
   searchContainer: {
     flex: 1,
@@ -634,7 +843,7 @@ const styles = StyleSheet.create({
   },
   filterText: { fontSize: FONTS.SMALL, color: COLORS.GRAY, fontWeight: "500" },
   selectedFilterText: { color: COLORS.WHITE, fontWeight: "bold" },
-  categorySection: { marginTop: SPACING.MEDIUM, marginBottom: SPACING.LARGE },
+  categorySection: { marginBottom: 4 },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -715,117 +924,322 @@ const styles = StyleSheet.create({
     marginTop: SPACING.TINY,
   },
 
-  // ✅ Styles cho Modal kiểu bottom sheet
+  // Modal Styles - React Native
   modalOverlay: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
   },
   modalContainer: {
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingVertical: 20,
-    maxHeight: "70%",
-    justifyContent: "space-between",
+    borderRadius: 30,
+    height: "70%",
+    overflow: "hidden",
+  },
+  modalHeader: {
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+    paddingTop: 20,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+  },
+  modalHeaderTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalIconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: COLORS.PRIMARY,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  modalHeaderText: {
+    flex: 1,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000000",
-    textAlign: "center",
-    marginBottom: 16,
-    paddingHorizontal: 20,
-  },
-  modalItem: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
-  },
-  selectedModalItem: {
-    backgroundColor: "#FAFAFA",
-  },
-  modalItemText: {
-    fontSize: 16,
-    color: "#000000",
-  },
-  selectedModalItemText: {
-    color: "#e91e63",
-    fontWeight: "500",
-  },
-  addressScroll: {
-    flex: 1,
-    paddingHorizontal: 20,
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#000",
+    marginBottom: 4,
   },
   modalSubtitle: {
-    fontSize: 16,
-    color: "#666666",
-    marginBottom: 12,
-    paddingHorizontal: 20,
+    fontSize: 14,
+    color: "#666",
   },
-  addressInput: {
-    backgroundColor: "#FAFAFA",
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: "#000000",
-    textAlignVertical: "top",
-    minHeight: 100,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderWidth: 1,
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#f5f5f5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  progressContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  stepIndicator: {
+    alignItems: "center",
+    gap: 8,
+  },
+  stepCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#E0E0E0",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
     borderColor: "#E0E0E0",
   },
-  modalBottom: {
-    borderTopWidth: 1,
-    borderTopColor: "#F0F0F0",
-    paddingTop: 16,
+  stepActive: {
+    backgroundColor: COLORS.PRIMARY,
+    borderColor: COLORS.PRIMARY,
   },
-  addressButtons: {
+  stepNumber: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#999",
+  },
+  stepNumberActive: {
+    color: "#fff",
+  },
+  stepLabel: {
+    fontSize: 12,
+    color: "#999",
+    fontWeight: "500",
+  },
+  stepLabelActive: {
+    color: COLORS.PRIMARY,
+    fontWeight: "600",
+  },
+  progressBarContainer: {
+    flex: 1,
+    alignItems: "center",
+    marginHorizontal: 12,
+    marginTop: -24,
+  },
+  progressBar: {
+    width: "100%",
+    height: 4,
+    backgroundColor: "#E0E0E0",
+    borderRadius: 2,
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: COLORS.PRIMARY,
+    borderRadius: 2,
+  },
+
+  // Modal Content
+  modalContent: {
+    flex: 1,
+    backgroundColor: "#fafafa",
+  },
+  listContent: {
+    padding: 16,
+    paddingBottom: 24,
+  },
+  cityCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: "transparent",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cityCardSelected: {
+    backgroundColor: "#FFF5F7",
+    borderColor: COLORS.PRIMARY,
+    shadowColor: COLORS.PRIMARY,
+    shadowOpacity: 0.2,
+  },
+  cityCardContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  cityIcon: {
+    fontSize: 28,
+  },
+  cityName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+  cityNameSelected: {
+    color: COLORS.PRIMARY,
+    fontWeight: "bold",
+  },
+
+  // District
+  districtScrollContent: {
+    paddingBottom: 24,
+  },
+  districtContainer: {
+    padding: 16,
+  },
+  selectedCityBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FFF5F7",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#FFE0E8",
+  },
+  selectedCityText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.PRIMARY,
+  },
+  districtGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  districtCard: {
+    width: (width - 56) / 2,
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 64,
+    borderWidth: 2,
+    borderColor: "#E0E0E0",
+    position: "relative",
+  },
+  districtCardSelected: {
+    backgroundColor: COLORS.PRIMARY,
+    borderColor: COLORS.PRIMARY,
+  },
+  districtText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    textAlign: "center",
+  },
+  districtTextSelected: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  checkIcon: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+  },
+
+  // Modal Footer
+  modalFooter: {
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#f0f0f0",
+    padding: 16,
+  },
+  footerButtons: {
     flexDirection: "row",
     gap: 12,
-    paddingHorizontal: 20,
   },
-  changeCityButton: {
+  backButton: {
     flex: 1,
-    paddingVertical: 12,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#E0E0E0",
+    gap: 4,
   },
-  changeCityText: {
+  backButtonText: {
     fontSize: 16,
-    color: "#666666",
-    fontWeight: "500",
+    fontWeight: "600",
+    color: "#666",
   },
   confirmButton: {
     flex: 1,
-    paddingVertical: 12,
-    backgroundColor: "#e91e63",
-    borderRadius: 8,
+    paddingVertical: 14,
+    backgroundColor: COLORS.PRIMARY,
+    borderRadius: 12,
     alignItems: "center",
+    justifyContent: "center",
+    shadowColor: COLORS.PRIMARY,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   confirmButtonDisabled: {
-    backgroundColor: "#CCCCCC",
+    backgroundColor: "#CCC",
+    shadowOpacity: 0,
   },
   confirmButtonText: {
-    color: "#FFFFFF",
+    color: "#fff",
     fontSize: 16,
     fontWeight: "bold",
   },
-  modalCloseButton: {
-    paddingVertical: 16,
+  closeFooterButton: {
+    paddingVertical: 14,
     alignItems: "center",
-    borderTopWidth: 1,
-    borderTopColor: "#F0F0F0",
   },
-  modalCloseText: {
+  closeFooterButtonText: {
     fontSize: 16,
-    color: "#e91e63",
-    fontWeight: "500",
+    fontWeight: "600",
+    color: COLORS.PRIMARY,
+  },
+  skipButton: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "flex-end", // <-- Đẩy nút "Qua" sang cuối
+    paddingVertical: 4,
+  },
+  skipButtonText: {
+    color: "#1877F2",
+    textDecorationLine: "underline",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  adviceCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0F8FF", // nhẹ nhàng, hiện đại
+    padding: SPACING.MEDIUM,
+    borderRadius: 16,
+    // marginTop: SPACING.MEDIUM,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  adviceCardText: {
+    fontSize: FONTS.REGULAR,
+    color: COLORS.TEXT,
+    flex: 1,
+    flexWrap: "wrap",
+  },
+  adviceCardHighlight: {
+    fontWeight: "bold",
+    color: COLORS.PRIMARY,
   },
 });
 

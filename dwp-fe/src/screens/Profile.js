@@ -227,6 +227,15 @@ export default function Profile({ navigation }) {
                 </Text>
               </View>
             </View>
+            <View style={styles.infoRow}>
+              <Ionicons name="person-outline" size={20} color={COLORS.GRAY} />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Địa chỉ</Text>
+                <Text style={styles.infoValue}>
+                  {userDetails?.profile?.address || "Chưa cập nhật"}
+                </Text>
+              </View>
+            </View>
             <TouchableOpacity
               style={styles.editButton}
               onPress={() => {
