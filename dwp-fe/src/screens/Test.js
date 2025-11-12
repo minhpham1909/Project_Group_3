@@ -53,12 +53,29 @@ export default function Test({ navigation }) {
     setShowTitleModal(false);
   };
 
+  // Hàm reset để tạo quiz mới
+  const resetForNewQuiz = () => {
+    setTitle("");
+    setDescription("");
+    setQuizData(null);
+    setIsQuizStarted(false);
+    setFinished(false);
+    setAiFeedback("");
+    setScore(0);
+  };
+
   // Bắt đầu quiz và gọi API để lấy dữ liệu quiz
   const startQuiz = async () => {
     if (!title) {
       Alert.alert("Lỗi", "Vui lòng chọn tiêu đề quiz.");
       return;
     }
+
+    if (!description || description.length < 4) {
+      Alert.alert("Lỗi", "Vui lòng nhập mô tả tối thiểu 4 kí tự");
+      return;
+    }
+
     try {
       const res = await axios.post(`${API_ROOT}/quiz/createQuiz`, {
         title: title,
@@ -164,14 +181,14 @@ export default function Test({ navigation }) {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.setupHeader}>
-            <Text style={styles.setupTitle}>Bắt đầu Quiz Mới</Text>
+            <Text style={styles.setupTitle}>Bắt đầu Khảo Sát Mới</Text>
             <Text style={styles.setupSubtitle}>
               Nhập thông tin cơ bản để tạo quiz
             </Text>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Tiêu đề Quiz</Text>
+            <Text style={styles.label}>Tiêu đề Khảo Sát</Text>
             <TouchableOpacity
               style={styles.dropdownContainer}
               onPress={() => setShowTitleModal(true)}
@@ -192,7 +209,7 @@ export default function Test({ navigation }) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Mô tả Quiz</Text>
+            <Text style={styles.label}>Mô tả Khảo Sát</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Nhập mô tả quiz"
@@ -210,7 +227,7 @@ export default function Test({ navigation }) {
             onPress={startQuiz}
             activeOpacity={0.8}
           >
-            <Text style={styles.primaryButtonText}>Bắt Đầu Quiz</Text>
+            <Text style={styles.primaryButtonText}>Bắt Đầu Khảo Sát</Text>
           </TouchableOpacity>
         </ScrollView>
 
@@ -223,7 +240,7 @@ export default function Test({ navigation }) {
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContainer}>
-              <Text style={styles.modalTitle}>Chọn Tiêu Đề Quiz</Text>
+              <Text style={styles.modalTitle}>Chọn Tiêu Đề Khảo Sát</Text>
               <FlatList
                 data={quizTitles}
                 keyExtractor={(item, index) => index.toString()}
@@ -254,39 +271,56 @@ export default function Test({ navigation }) {
     return (
       <SafeAreaView style={styles.container}>
         <ScrollView
-          contentContainerStyle={styles.scrollContainer}
+          contentContainerStyle={[
+            styles.scrollContainer,
+            styles.completedScroll,
+          ]}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.completedHeader}>
-            <Text style={styles.completedTitle}>Quiz Hoàn Thành!</Text>
+            <Text style={styles.completedTitle}>Hoàn Thành Khảo Sát!</Text>
             <Text style={styles.completedSubtitle}>Cảm ơn bạn đã tham gia</Text>
           </View>
 
           <View style={styles.feedbackSection}>
-            <Text style={styles.sectionTitle}>Nhận Xét Từ AI</Text>
+            <Text style={styles.sectionTitle}>Nhận Xét Từ StyleMe Brain</Text>
             <View style={styles.feedbackCard}>
-              {Array.isArray(aiFeedback) ? (
-                aiFeedback.map((feedback, index) => (
-                  <Text key={index} style={styles.feedbackText}>
-                    {feedback}
+              <ScrollView
+                style={styles.feedbackScroll}
+                showsVerticalScrollIndicator={true}
+              >
+                {Array.isArray(aiFeedback) ? (
+                  aiFeedback.map((feedback, index) => (
+                    <Text key={index} style={styles.feedbackText}>
+                      {feedback}
+                    </Text>
+                  ))
+                ) : (
+                  <Text style={styles.feedbackText}>
+                    {aiFeedback ?? "Không có nhận xét từ AI"}
                   </Text>
-                ))
-              ) : (
-                <Text style={styles.feedbackText}>
-                  {aiFeedback ?? "Không có nhận xét từ AI"}
-                </Text>
-              )}
+                )}
+              </ScrollView>
             </View>
           </View>
+        </ScrollView>
 
+        <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={styles.primaryButton}
+            style={[styles.secondaryButton, styles.retakeButton]}
             onPress={startQuiz}
             activeOpacity={0.8}
           >
-            <Text style={styles.primaryButtonText}>Làm Lại Quiz</Text>
+            <Text style={styles.secondaryButtonText}>Làm Lại Khảo Sát</Text>
           </TouchableOpacity>
-        </ScrollView>
+          <TouchableOpacity
+            style={[styles.primaryButton, styles.newButton]}
+            onPress={resetForNewQuiz}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.primaryButtonText}>Tạo Khảo Sát Mới</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -295,7 +329,7 @@ export default function Test({ navigation }) {
     <SafeAreaView style={styles.container}>
       <View style={styles.quizHeader}>
         <View style={styles.headerContent}>
-          <Text style={styles.quizTitle}>Tên Bài Kiểm Tra: {title}</Text>
+          <Text style={styles.quizTitle}>Tên Khảo Sát: {title}</Text>
           <Text style={styles.quizDescription}>Mô tả: {description}</Text>
         </View>
         <View style={styles.progressBar}>
@@ -358,7 +392,7 @@ export default function Test({ navigation }) {
         onPress={submitQuiz}
         activeOpacity={0.8}
       >
-        <Text style={styles.submitButtonText}>Nộp Bài</Text>
+        <Text style={styles.submitButtonText}>Đánh Giá</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -373,6 +407,9 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 20,
     paddingVertical: 20,
+  },
+  completedScroll: {
+    paddingBottom: 20, // Giảm padding bottom để feedback gần nút hơn
   },
 
   // Setup Screen Styles
@@ -645,23 +682,24 @@ const styles = StyleSheet.create({
   // Completed Screen Styles
   completedHeader: {
     alignItems: "center",
-    marginBottom: 32,
+    marginBottom: 24,
   },
   completedTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "bold",
     color: "#000000", // Đen cho completed title
-    marginBottom: 8,
+    marginBottom: 4,
   },
   completedSubtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: "#666666", // Xám cho subtitle
   },
   feedbackSection: {
-    marginBottom: 32,
+    marginBottom: 20, // Giảm margin để gần nút hơn
+    flex: 1, // Để mở rộng
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
     color: "#000000", // Đen cho section title
     marginBottom: 12,
@@ -669,35 +707,72 @@ const styles = StyleSheet.create({
   feedbackCard: {
     backgroundColor: "#FAFAFA", // Xám rất nhạt cho feedback card
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     elevation: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
+    flex: 1,
+    maxHeight: 600, // Tăng chiều cao để kéo gần cuối màn hình hơn
+  },
+  feedbackScroll: {
+    flex: 1,
+    maxHeight: 600,
   },
   feedbackText: {
-    fontSize: 16,
+    fontSize: 14,
     color: "#000000", // Đen cho feedback
-    lineHeight: 24,
+    lineHeight: 20,
+  },
+
+  // Button Container for Completed Screen
+  buttonContainer: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "#F0F0F0",
+  },
+  secondaryButton: {
+    backgroundColor: "#FAFAFA",
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    marginRight: 8,
+    alignItems: "center",
+  },
+  retakeButton: {
+    // Giữ nguyên style cho retake
+  },
+  newButton: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  secondaryButtonText: {
+    color: "#666666",
+    fontSize: 14,
+    fontWeight: "500",
   },
 
   // Shared Button Styles
   primaryButton: {
     backgroundColor: "#e91e63",
-    borderRadius: 16,
-    paddingVertical: 16,
+    borderRadius: 12,
+    paddingVertical: 12,
     alignItems: "center",
-    marginTop: 8,
-    elevation: 4,
+    elevation: 2,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   primaryButtonText: {
     color: "#FFFFFF",
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
   },
 });

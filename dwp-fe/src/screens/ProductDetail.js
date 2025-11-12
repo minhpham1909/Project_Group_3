@@ -38,11 +38,11 @@ const ProductDetail = ({ route, navigation }) => {
        {
          headers: {
            "User-Agent":
-             "MyReactNativeApp/1.0 (contact: your.email@example.com)", // ✅ Thay 'your.email@example.com' bằng email thật
+             "MyReactNativeApp/1.0 (contact: your-real-email@domain.com)", // ✅ Replace with your actual email
          },
        }
      );
-     console.log("Geocoding response:", response.data); // ✅ Thêm log để debug
+     console.log("Geocoding response:", response.data);
 
      if (response.data && response.data.length > 0) {
        const { lat, lon } = response.data[0];
@@ -52,13 +52,15 @@ const ProductDetail = ({ route, navigation }) => {
            longitude: parseFloat(lon),
          });
        } else {
-         console.warn("Invalid lat/lon from geocoding"); // ✅ Log warn nếu fail
+         console.warn("Invalid lat/lon from geocoding");
        }
      } else {
-       console.warn("No geocoding results for address:", address); // ✅ Log nếu empty
+       console.warn("No geocoding results for address:", address);
      }
    } catch (err) {
-     console.error("Geocoding error:", err); // Đã có, nhưng thêm context
+     console.error("Geocoding error:", err);
+     // Optionally, set a state for user-friendly error handling
+     // setError("Unable to locate address. Please check and try again.");
    }
  };
 
@@ -120,6 +122,33 @@ const ProductDetail = ({ route, navigation }) => {
     const contentOffsetX = event.nativeEvent.contentOffset.x;
     const index = Math.round(contentOffsetX / width);
     setCurrentImageIndex(index);
+  };
+
+  // Tạo HTML cho Leaflet map
+  const getMapHtml = (lat, lon) => {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+          <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+          <style>
+              html, body, #map { height: 100%; margin: 0; padding: 0; }
+          </style>
+      </head>
+      <body>
+          <div id="map"></div>
+          <script>
+              var map = L.map('map').setView([${lat}, ${lon}], 15);
+              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              }).addTo(map);
+              var marker = L.marker([${lat}, ${lon}]).addTo(map);
+              marker.bindPopup('Địa chỉ cửa hàng').openPopup();
+          </script>
+      </body>
+      </html>
+    `;
   };
 
   return (
@@ -308,15 +337,23 @@ const ProductDetail = ({ route, navigation }) => {
                 >
                   <WebView
                     source={{
-                      uri: `https://www.openstreetmap.org/export/embed.html?bbox=${
-                        coordinates.longitude - 0.01
-                      },${coordinates.latitude - 0.01},${
-                        coordinates.longitude + 0.01
-                      },${coordinates.latitude + 0.01}&layer=mapnik&marker=${
-                        coordinates.latitude
-                      },${coordinates.longitude}`,
+                      html: getMapHtml(
+                        coordinates.latitude,
+                        coordinates.longitude
+                      ),
                     }}
                     style={styles.map}
+                    javaScriptEnabled={true}
+                    domStorageEnabled={true}
+                    startInLoadingState={true}
+                    renderLoading={() => (
+                      <View style={styles.mapLoading}>
+                        <ActivityIndicator
+                          size="small"
+                          color={COLORS.PRIMARY}
+                        />
+                      </View>
+                    )}
                   />
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -584,6 +621,16 @@ const styles = StyleSheet.create({
   },
   map: {
     height: 200,
+  },
+  mapLoading: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.8)",
   },
   mapButton: {
     flexDirection: "row",
