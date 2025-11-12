@@ -200,7 +200,7 @@ export default function Test({ navigation }) {
                   !title ? styles.placeholderText : {},
                 ]}
               >
-                {title || "Chọn tiêu đề quiz"}
+                {title || "Chọn tiêu đề khảo sát"}
               </Text>
               <Text style={styles.dropdownArrow}>▼</Text>
             </TouchableOpacity>
@@ -212,7 +212,7 @@ export default function Test({ navigation }) {
             <Text style={styles.label}>Mô tả Khảo Sát</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Nhập mô tả quiz"
+              placeholder="Nhập mô tả"
               value={description}
               onChangeText={setDescription}
               multiline

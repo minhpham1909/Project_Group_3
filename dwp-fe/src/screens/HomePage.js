@@ -47,6 +47,8 @@ const HomeScreen = ({ navigation }) => {
   const [updatingAddress, setUpdatingAddress] = useState(false);
   const [step, setStep] = useState(1);
 
+  const [userData, setUserData] = useState(null);
+
   // Cities list with emojis
   const cities = [
     { name: "Hà Nội", icon: "🏛️" },
@@ -107,6 +109,7 @@ const HomeScreen = ({ navigation }) => {
 
       if (response.status === 200 && response.data) {
         setIsFirstLogin(response.data.isFirstLogin);
+        setUserData(response.data);
         console.log("Updated user data:", response.data);
       }
     } catch (error) {
@@ -159,11 +162,18 @@ const HomeScreen = ({ navigation }) => {
     setUpdatingAddress(true);
     try {
       const fullAddress = `${selectedDistrict}, ${selectedCity}`;
-      const response = await axios.put(
-        `${API_ROOT}/user/update-address/${userId}`,
-        { address: fullAddress, isFirstLogin: false },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      let address;
+      const payload = {
+        profile: {
+          name: userData?.profile?.name,
+          phone: userData?.profile?.phone,
+          gender: userData?.profile?.gender,
+          address: fullAddress,
+        },
+        ...(fullAddress ? { isFirstLogin: false } : {}),
+      };
+
+      const response = await axios.put(`${API_ROOT}/user/${userId}`, payload);
 
       if (response.status === 200) {
         setShowAddressModal(false);

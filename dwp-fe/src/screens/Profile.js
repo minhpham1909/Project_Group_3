@@ -9,50 +9,60 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  TextInput,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useSelector } from "react-redux";
-import { useDispatch } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import axios from "axios";
-import { logout } from "../redux/authSlice";
-import { API_ROOT, COLORS, FONTS, SPACING } from "../utils/constant";
+import * as ImagePicker from "expo-image-picker";
+import { Picker } from "@react-native-picker/picker";
 import { useFocusEffect } from "@react-navigation/native";
+import { logout, updateUser } from "../redux/authSlice";
+import { API_ROOT, COLORS, FONTS, SPACING } from "../utils/constant";
 
 export default function Profile({ navigation }) {
   const userName = useSelector((state) => state.auth.user?.name);
   const userId = useSelector((state) => state.auth.user?.id);
   const dispatch = useDispatch();
+
   const [userDetails, setUserDetails] = useState(null);
   const [quizData, setQuizData] = useState([]);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false); // Để kiểm soát trạng thái của modal
+  const [quizModalVisible, setQuizModalVisible] = useState(false);
+
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editData, setEditData] = useState({
+    name: "",
+    phone: "",
+    gender: null,
+    address: "",
+  });
+  const [isUpdating, setIsUpdating] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
-      if (!userId) return; // Nếu không có userId thì không gọi API
-
-      userInfoDetail();
-      getQuizByUserId();
+      if (!userId) return;
+      fetchUserDetails();
+      fetchQuizData();
     }, [userId])
   );
 
-  const userInfoDetail = async () => {
+  const fetchUserDetails = async () => {
     try {
       const res = await axios.get(`${API_ROOT}/user/${userId}`);
       setUserDetails(res.data);
-      console.log("User details fetched:", res.data);
     } catch (error) {
       console.log("Error fetching user details:", error);
     }
   };
 
-  const getQuizByUserId = async () => {
+  const fetchQuizData = async () => {
     try {
       const res = await axios.get(`${API_ROOT}/quiz/getQuizByUserId/${userId}`);
       setQuizData(res.data);
-      console.log("Quizzes fetched:", res.data);
     } catch (error) {
       console.log("Error fetching quizzes:", error);
     }
@@ -62,27 +72,28 @@ export default function Profile({ navigation }) {
     try {
       const res = await axios.get(`${API_ROOT}/quiz/${quizId}`);
       setSelectedQuiz(res.data);
-      console.log("Quiz details fetched:", res.data);
-      setModalVisible(true); // Hiển thị modal khi lấy thông tin quiz thành công
+      setQuizModalVisible(true);
     } catch (error) {
       console.log("Error fetching quiz details:", error);
     }
   };
 
   const handleLogout = () => {
-    const confirmLogout = async () => {
-      try {
-        await axios.post(`${API_ROOT}/auth/sign-out`);
-      } catch (error) {
-        console.log("Logout Error:", error.response || error);
-      } finally {
-        dispatch(logout()); // reset state dù API lỗi
-      }
-    };
-
     Alert.alert("Đăng xuất", "Bạn có chắc chắn muốn đăng xuất?", [
       { text: "Hủy", style: "cancel" },
-      { text: "Đăng xuất", style: "destructive", onPress: confirmLogout },
+      {
+        text: "Đăng xuất",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await axios.post(`${API_ROOT}/auth/sign-out`);
+          } catch (error) {
+            console.log("Logout Error:", error.response || error);
+          } finally {
+            dispatch(logout());
+          }
+        },
+      },
     ]);
   };
 
@@ -94,14 +105,12 @@ export default function Profile({ navigation }) {
         { text: "Hủy", style: "cancel" },
         {
           text: "Gửi yêu cầu",
-          // ⚠️ Không thể khai báo trực tiếp async ở đây, nên dùng hàm riêng
-          onPress: () => sendSupplierRequest(),
+          onPress: sendSupplierRequest,
         },
       ]
     );
   };
 
-  // 🧩 Viết hàm async riêng để gửi yêu cầu
   const sendSupplierRequest = async () => {
     setIsRequesting(true);
     try {
@@ -112,19 +121,66 @@ export default function Profile({ navigation }) {
         "Thành công",
         "Yêu cầu của bạn đã được gửi đến quản trị viên!"
       );
-      await userInfoDetail();
-      console.log("Request supplier response:", res.data);
+      fetchUserDetails();
     } catch (error) {
       console.log("Error sending supplier request:", error);
       Alert.alert(
         "Lỗi",
-        error.response?.data?.message ||
-          "Không thể gửi yêu cầu. Vui lòng thử lại sau."
+        error.response?.data?.message || "Không thể gửi yêu cầu. Thử lại sau."
       );
     } finally {
       setIsRequesting(false);
     }
   };
+
+  const openEditModal = () => {
+    setEditData({
+      name: userDetails?.profile?.name || "",
+      phone: userDetails?.profile?.phone || "",
+      gender: userDetails?.profile?.gender,
+      address: userDetails?.profile?.address || "",
+    });
+    setEditModalVisible(true);
+  };
+
+ const handleUpdateUser = async () => {
+   setIsUpdating(true);
+   try {
+     const payload = {
+       profile: {
+         name: editData.name,
+         phone: editData.phone,
+         gender: editData.gender,
+         address: editData.address,
+       },
+       ...(editData.address ? { isFirstLogin: false } : {}),
+     };
+     await axios.put(`${API_ROOT}/user/${userId}`, payload);
+
+     // Update Redux ngay từ editData (fallback nếu fetch chậm)
+     dispatch(
+       updateUser({
+         user: {
+           ...userName, // Giữ các field cũ
+           name: editData.name, // Update name mới
+           profile: { ...userDetails?.profile, ...payload.profile }, // Merge profile
+         },
+       })
+     );
+
+     Alert.alert("Thành công", "Cập nhật thông tin thành công!");
+     fetchUserDetails(); // Vẫn gọi để sync full data
+     setEditModalVisible(false);
+   } catch (error) {
+     console.log("Error updating user:", error.response || error);
+     Alert.alert(
+       "Lỗi",
+       error.response?.data?.message || "Không thể cập nhật. Thử lại sau."
+     );
+   } finally {
+     setIsUpdating(false);
+   }
+ };
 
   const formatDate = (dateString) => {
     if (!dateString) return "Chưa có thông tin";
@@ -140,8 +196,19 @@ export default function Profile({ navigation }) {
     }
   };
 
-  // Show loading state only when userId exists but userDetails is still loading
   const isLoading = userId && !userDetails;
+
+  const defaultAvatar =
+    "https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg";
+
+  const genderOptions = [
+    { label: "Nam", value: true },
+    { label: "Nữ", value: false },
+  ];
+
+  const selectGender = (value) => {
+    setEditData({ ...editData, gender: value });
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -151,346 +218,413 @@ export default function Profile({ navigation }) {
           <Text style={styles.loadingText}>Đang tải thông tin...</Text>
         </View>
       ) : (
-        <ScrollView
-          style={styles.container}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Profile Header */}
-          <View style={styles.profileHeader}>
-            <View style={styles.avatarContainer}>
-              <Image
-                source={{
-                  uri:
-                    userDetails?.profile?.avatar ||
-                    "https://i.pinimg.com/236x/5e/e0/82/5ee082781b8c41406a2a50a0f32d6aa6.jpg",
-                }}
-                style={styles.profileImage}
-              />
-              <TouchableOpacity
-                style={styles.editAvatarButton}
-                onPress={() => {
-                  /* Handle edit avatar */
-                }}
-              >
-                <Ionicons name="camera" size={16} color={COLORS.WHITE} />
-              </TouchableOpacity>
+        <>
+          <ScrollView
+            style={styles.container}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Profile Header */}
+            <View style={styles.profileHeader}>
+              <View style={styles.avatarContainer}>
+                <Image
+                  source={{
+                    uri: userDetails?.profile?.avatar || defaultAvatar,
+                  }}
+                  style={styles.profileImage}
+                />
+                <TouchableOpacity
+                  style={styles.editAvatarButton}
+                  onPress={openEditModal}
+                >
+                  <Ionicons name="camera" size={16} color={COLORS.WHITE} />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.username}>{userName || "Người dùng"}</Text>
+              <Text style={styles.userRole}>
+                {userDetails?.role === 1
+                  ? "Khách hàng"
+                  : userDetails?.role === 2
+                  ? "Chủ cửa hàng"
+                  : "Quản trị viên"}
+              </Text>
             </View>
-            <Text style={styles.username}>{userName || "Người dùng"}</Text>
-            <Text style={styles.userRole}>
-              {userDetails?.role === 1
-                ? "Khách hàng"
-                : userDetails?.role === 2
-                ? "Chủ cửa hàng"
-                : "Quản trị viên"}
-            </Text>
-          </View>
 
-          {/* User Info Card */}
-          <View style={styles.infoCard}>
-            <View style={styles.cardHeader}>
-              <Ionicons
-                name="information-circle"
-                size={24}
-                color={COLORS.PRIMARY}
-              />
-              <Text style={styles.cardTitle}>Thông tin cá nhân</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Ionicons name="mail-outline" size={20} color={COLORS.GRAY} />
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Email</Text>
-                <Text style={styles.infoValue}>
-                  {userDetails?.account?.email || "Chưa cập nhật"}
-                </Text>
+            {/* User Info Card */}
+            <View style={styles.infoCard}>
+              <View style={styles.cardHeader}>
+                <Ionicons
+                  name="information-circle"
+                  size={24}
+                  color={COLORS.PRIMARY}
+                />
+                <Text style={styles.cardTitle}>Thông tin cá nhân</Text>
               </View>
-            </View>
-            <View style={styles.infoRow}>
-              <Ionicons name="call-outline" size={20} color={COLORS.GRAY} />
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Số điện thoại</Text>
-                <Text style={styles.infoValue}>
-                  {userDetails?.profile?.phone || "Chưa cập nhật"}
-                </Text>
+              <View style={styles.infoRow}>
+                <Ionicons name="mail-outline" size={20} color={COLORS.GRAY} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Email</Text>
+                  <Text style={styles.infoValue}>
+                    {userDetails?.account?.email || "Chưa cập nhật"}
+                  </Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.infoRow}>
-              <Ionicons name="person-outline" size={20} color={COLORS.GRAY} />
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Giới tính</Text>
-                <Text style={styles.infoValue}>
-                  {userDetails?.profile?.gender === true
-                    ? "Nam"
-                    : userDetails?.profile?.gender === false
-                    ? "Nữ"
-                    : "Chưa cập nhật"}
-                </Text>
+              <View style={styles.infoRow}>
+                <Ionicons name="call-outline" size={20} color={COLORS.GRAY} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Số điện thoại</Text>
+                  <Text style={styles.infoValue}>
+                    {userDetails?.profile?.phone || "Chưa cập nhật"}
+                  </Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.infoRow}>
-              <Ionicons name="person-outline" size={20} color={COLORS.GRAY} />
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Địa chỉ</Text>
-                <Text style={styles.infoValue}>
-                  {userDetails?.profile?.address || "Chưa cập nhật"}
-                </Text>
+              <View style={styles.infoRow}>
+                <Ionicons name="person-outline" size={20} color={COLORS.GRAY} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Giới tính</Text>
+                  <Text style={styles.infoValue}>
+                    {userDetails?.profile?.gender === true
+                      ? "Nam"
+                      : userDetails?.profile?.gender === false
+                      ? "Nữ"
+                      : "Chưa cập nhật"}
+                  </Text>
+                </View>
               </View>
-            </View>
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={() => {
-                /* Handle edit action */
-              }}
-            >
-              <Ionicons name="create-outline" size={20} color={COLORS.WHITE} />
-              <Text style={styles.editButtonText}>Chỉnh sửa thông tin</Text>
-            </TouchableOpacity>
-            {userDetails?.role === 1 && (
+              <View style={styles.infoRow}>
+                <Ionicons name="home-outline" size={20} color={COLORS.GRAY} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Địa chỉ</Text>
+                  <Text style={styles.infoValue}>
+                    {userDetails?.profile?.address || "Chưa cập nhật"}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Buttons */}
               <TouchableOpacity
-                style={[
-                  styles.editButton,
-                  (isRequesting ||
-                    userDetails?.roleRequestStatus === "pending") && {
-                    opacity: 0.6,
-                  },
-                ]}
-                disabled={
-                  isRequesting || userDetails?.roleRequestStatus === "pending"
-                }
-                onPress={handleRequestBecomeSupplier}
+                style={styles.editButton}
+                onPress={openEditModal}
               >
                 <Ionicons
-                  name="storefront-outline"
+                  name="create-outline"
                   size={20}
                   color={COLORS.WHITE}
                 />
-                <Text style={styles.editButtonText}>
-                  {isRequesting
-                    ? "Đang gửi yêu cầu..."
-                    : userDetails?.roleRequestStatus === "pending"
-                    ? "Đã gửi yêu cầu - Chờ duyệt"
-                    : "Yêu cầu trở thành Nhà cung cấp"}
-                </Text>
+                <Text style={styles.editButtonText}>Chỉnh sửa thông tin</Text>
               </TouchableOpacity>
-            )}
-          </View>
 
-          {/* Quiz History Section */}
-          {/* <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Ionicons
-                name="document-text-outline"
-                size={24}
-                color={COLORS.PRIMARY}
-              />
-              <Text style={styles.sectionTitle}>Lịch sử Quiz</Text>
+              {userDetails?.role === 1 && (
+                <TouchableOpacity
+                  style={[
+                    styles.editButton,
+                    (isRequesting ||
+                      userDetails?.roleRequestStatus === "pending") && {
+                      opacity: 0.6,
+                    },
+                  ]}
+                  disabled={
+                    isRequesting || userDetails?.roleRequestStatus === "pending"
+                  }
+                  onPress={handleRequestBecomeSupplier}
+                >
+                  <Ionicons
+                    name="storefront-outline"
+                    size={20}
+                    color={COLORS.WHITE}
+                  />
+                  <Text style={styles.editButtonText}>
+                    {isRequesting
+                      ? "Đang gửi yêu cầu..."
+                      : userDetails?.roleRequestStatus === "pending"
+                      ? "Đã gửi yêu cầu - Chờ duyệt"
+                      : "Yêu cầu trở thành Nhà cung cấp"}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
-            {quizData.length === 0 ? (
-              <View style={styles.emptyContainer}>
+
+            {/* Quizzes Section */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
                 <Ionicons
-                  name="document-outline"
-                  size={64}
+                  name="book-outline"
+                  size={24}
+                  color={COLORS.PRIMARY}
+                />
+                <Text style={styles.sectionTitle}>
+                  Các bài kiểm tra của tôi
+                </Text>
+              </View>
+              {quizData.length === 0 ? (
+                <View style={styles.noDataContainer}>
+                  <Ionicons name="book-outline" size={48} color={COLORS.GRAY} />
+                  <Text style={styles.noDataText}>
+                    Chưa có bài kiểm tra nào.
+                  </Text>
+                </View>
+              ) : (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.quizScroll}
+                >
+                  {quizData.map((quiz, index) => (
+                    <TouchableOpacity
+                      key={quiz.id || index}
+                      style={styles.quizCard}
+                      onPress={() => getQuizById(quiz.id)}
+                    >
+                      <Ionicons name="book" size={32} color={COLORS.PRIMARY} />
+                      <Text style={styles.quizTitle} numberOfLines={2}>
+                        {quiz.title}
+                      </Text>
+                      <Text style={styles.quizDate}>
+                        {formatDate(quiz.createdAt)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+
+            {/* Settings Section */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Ionicons
+                  name="settings-outline"
+                  size={24}
+                  color={COLORS.PRIMARY}
+                />
+                <Text style={styles.sectionTitle}>Cài đặt</Text>
+              </View>
+              <TouchableOpacity style={styles.settingItem}>
+                <View style={styles.settingLeft}>
+                  <View style={styles.settingIconContainer}>
+                    <Ionicons
+                      name="lock-closed-outline"
+                      size={20}
+                      color={COLORS.PRIMARY}
+                    />
+                  </View>
+                  <Text style={styles.settingText}>Đổi mật khẩu</Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
                   color={COLORS.GRAY}
                 />
-                <Text style={styles.emptyText}>Chưa có lịch sử quiz nào</Text>
-                <Text style={styles.emptySubtext}>
-                  Bắt đầu làm quiz để xem lịch sử của bạn
-                </Text>
-              </View>
-            ) : (
-              quizData.map((quiz, index) => (
-                <TouchableOpacity
-                  key={quiz._id || index}
-                  style={styles.quizCard}
-                  onPress={() => getQuizById(quiz._id)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.quizHeader}>
-                    <View style={styles.quizIconContainer}>
-                      <Ionicons
-                        name="document-text"
-                        size={24}
-                        color={COLORS.PRIMARY}
-                      />
-                    </View>
-                    <View style={styles.quizInfo}>
-                      <Text style={styles.quizTitle} numberOfLines={1}>
-                        {quiz.title || "Quiz không có tiêu đề"}
-                      </Text>
-                      <Text style={styles.quizDescription} numberOfLines={2}>
-                        {quiz.description || "Không có mô tả"}
-                      </Text>
-                      <View style={styles.quizMeta}>
-                        <Ionicons
-                          name="calendar-outline"
-                          size={14}
-                          color={COLORS.GRAY}
-                        />
-                        <Text style={styles.quizDate}>
-                          {formatDate(quiz.createdAt)}
-                        </Text>
-                      </View>
-                    </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={handleLogout}
+              >
+                <View style={styles.settingLeft}>
+                  <View
+                    style={[
+                      styles.settingIconContainer,
+                      styles.logoutIconContainer,
+                    ]}
+                  >
+                    <Ionicons
+                      name="log-out-outline"
+                      size={20}
+                      color={COLORS.ERROR}
+                    />
                   </View>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={24}
-                    color={COLORS.GRAY}
-                  />
-                </TouchableOpacity>
-              ))
-            )}
-          </View> */}
-
-          {/* Settings Section */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Ionicons
-                name="settings-outline"
-                size={24}
-                color={COLORS.PRIMARY}
-              />
-              <Text style={styles.sectionTitle}>Cài đặt</Text>
+                  <Text style={[styles.settingText, styles.logoutText]}>
+                    Đăng xuất
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={COLORS.GRAY}
+                />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={styles.settingItem}
-              onPress={() => {
-                /* Handle change password */
-              }}
-            >
-              <View style={styles.settingLeft}>
-                <View style={styles.settingIconContainer}>
-                  <Ionicons
-                    name="lock-closed-outline"
-                    size={20}
-                    color={COLORS.PRIMARY}
-                  />
-                </View>
-                <Text style={styles.settingText}>Đổi mật khẩu</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.GRAY} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.settingItem} onPress={handleLogout}>
-              <View style={styles.settingLeft}>
-                <View
-                  style={[
-                    styles.settingIconContainer,
-                    styles.logoutIconContainer,
-                  ]}
-                >
-                  <Ionicons
-                    name="log-out-outline"
-                    size={20}
-                    color={COLORS.ERROR}
-                  />
-                </View>
-                <Text style={[styles.settingText, styles.logoutText]}>
-                  Đăng xuất
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.GRAY} />
-            </TouchableOpacity>
-          </View>
+          </ScrollView>
 
-          {/* Modal for quiz details */}
+          {/* Edit User Modal */}
           <Modal
             animationType="slide"
             transparent={true}
-            visible={modalVisible}
-            onRequestClose={() => setModalVisible(false)}
+            visible={editModalVisible}
+            onRequestClose={() => setEditModalVisible(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.editModalContainer}>
+                {/* Header */}
+                <View style={styles.editModalHeader}>
+                  <Text style={styles.editModalTitle}>Chỉnh sửa thông tin</Text>
+                  <TouchableOpacity
+                    onPress={() => setEditModalVisible(false)}
+                    style={styles.editModalClose}
+                  >
+                    <Ionicons name="close" size={24} color={COLORS.GRAY} />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView
+                  style={styles.editModalBody}
+                  showsVerticalScrollIndicator={false}
+                >
+                  <View style={styles.editInputGroup}>
+                    <Text style={styles.editInputLabel}>Tên tài khoản</Text>
+                    <TextInput
+                      value={editData.name}
+                      onChangeText={(text) =>
+                        setEditData({ ...editData, name: text })
+                      }
+                      placeholder="Nhập tên tài khoản"
+                      style={styles.editInput}
+                    />
+                  </View>
+
+                  {/* Phone */}
+                  <View style={styles.editInputGroup}>
+                    <Text style={styles.editInputLabel}>Số điện thoại</Text>
+                    <TextInput
+                      value={editData.phone}
+                      onChangeText={(text) =>
+                        setEditData({ ...editData, phone: text })
+                      }
+                      placeholder="Nhập số điện thoại"
+                      style={styles.editInput}
+                      keyboardType="phone-pad"
+                    />
+                  </View>
+
+                  {/* Gender */}
+                  <View style={styles.editInputGroup}>
+                    <Text style={styles.editInputLabel}>Giới tính</Text>
+                    <View style={styles.genderContainer}>
+                      {genderOptions.map((option) => (
+                        <TouchableOpacity
+                          key={option.value?.toString() || "null"}
+                          style={[
+                            styles.genderOption,
+                            editData.gender === option.value &&
+                              styles.genderOptionSelected,
+                          ]}
+                          onPress={() => selectGender(option.value)}
+                        >
+                          <Text
+                            style={[
+                              styles.genderOptionText,
+                              editData.gender === option.value &&
+                                styles.genderOptionTextSelected,
+                            ]}
+                          >
+                            {option.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Address */}
+                  <View style={styles.editInputGroup}>
+                    <Text style={styles.editInputLabel}>Địa chỉ</Text>
+                    <TextInput
+                      value={editData.address}
+                      onChangeText={(text) =>
+                        setEditData({ ...editData, address: text })
+                      }
+                      placeholder="Nhập địa chỉ"
+                      style={[
+                        styles.editInput,
+                        { minHeight: 80, textAlignVertical: "top" },
+                      ]}
+                      multiline
+                    />
+                  </View>
+                </ScrollView>
+
+                {/* Update Button */}
+                <TouchableOpacity
+                  style={[
+                    styles.editModalButton,
+                    { opacity: isUpdating ? 0.6 : 1 },
+                  ]}
+                  onPress={handleUpdateUser}
+                  disabled={isUpdating}
+                >
+                  <Text style={styles.editModalButtonText}>
+                    {isUpdating ? "Đang cập nhật..." : "Cập nhật thông tin"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+
+          {/* Quiz Modal */}
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={quizModalVisible}
+            onRequestClose={() => setQuizModalVisible(false)}
           >
             <View style={styles.modalOverlay}>
               <View style={styles.modalContainer}>
-                <TouchableOpacity
-                  style={styles.modalCloseButton}
-                  onPress={() => setModalVisible(false)}
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>
+                    {selectedQuiz?.title || "Chi tiết bài kiểm tra"}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.modalCloseButton}
+                    onPress={() => setQuizModalVisible(false)}
+                  >
+                    <Ionicons name="close" size={24} color={COLORS.GRAY} />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView
+                  style={styles.modalScroll}
+                  showsVerticalScrollIndicator={false}
                 >
-                  <Ionicons name="close" size={24} color={COLORS.GRAY} />
-                </TouchableOpacity>
-                <View style={styles.modalIconContainer}>
-                  <Ionicons
-                    name="document-text"
-                    size={48}
-                    color={COLORS.PRIMARY}
-                  />
-                </View>
-                <Text style={styles.modalTitle}>
-                  {selectedQuiz?.title || "Chi tiết Quiz"}
-                </Text>
-                <View style={styles.modalContentContainer}>
-                  <View style={styles.modalInfoRow}>
-                    <Ionicons
-                      name="document-text-outline"
-                      size={20}
-                      color={COLORS.GRAY}
-                    />
-                    <View style={styles.modalInfoContent}>
-                      <Text style={styles.modalInfoLabel}>Mô tả</Text>
-                      <Text style={styles.modalInfoValue}>
-                        {selectedQuiz?.description || "Không có mô tả"}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.modalInfoRow}>
-                    <Ionicons
-                      name="calendar-outline"
-                      size={20}
-                      color={COLORS.GRAY}
-                    />
-                    <View style={styles.modalInfoContent}>
-                      <Text style={styles.modalInfoLabel}>Ngày tạo</Text>
-                      <Text style={styles.modalInfoValue}>
-                        {formatDate(selectedQuiz?.createdAt)}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.modalInfoRow}>
-                    <Ionicons
-                      name="help-circle-outline"
-                      size={20}
-                      color={COLORS.GRAY}
-                    />
-                    <View style={styles.modalInfoContent}>
-                      <Text style={styles.modalInfoLabel}>Số câu hỏi</Text>
-                      <Text style={styles.modalInfoValue}>
-                        {selectedQuiz?.questions?.length || 0} câu hỏi
-                      </Text>
-                    </View>
-                  </View>
-                </View>
+                  <Text style={styles.infoValue}>
+                    Ngày tạo: {formatDate(selectedQuiz?.createdAt)}
+                  </Text>
+                  {selectedQuiz?.description && (
+                    <Text style={styles.quizDescription}>
+                      {selectedQuiz.description}
+                    </Text>
+                  )}
+                  {/* Có thể thêm danh sách câu hỏi nếu selectedQuiz.questions tồn tại */}
+                  {selectedQuiz?.questions &&
+                    selectedQuiz.questions.length > 0 && (
+                      <View style={styles.questionsList}>
+                        <Text style={styles.sectionTitle}>Câu hỏi:</Text>
+                        {selectedQuiz.questions.map((q, index) => (
+                          <View key={q.id || index} style={styles.questionItem}>
+                            <Text style={styles.quizTitle}>
+                              {index + 1}. {q.question}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                </ScrollView>
                 <TouchableOpacity
                   style={styles.modalButton}
-                  onPress={() => setModalVisible(false)}
+                  onPress={() => setQuizModalVisible(false)}
                 >
                   <Text style={styles.modalButtonText}>Đóng</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </Modal>
-        </ScrollView>
+        </>
       )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
-  },
-  scrollContent: {
-    paddingBottom: SPACING.XLARGE,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: COLORS.BACKGROUND,
-  },
+  safeArea: { flex: 1, backgroundColor: COLORS.BACKGROUND },
+  container: { flex: 1, backgroundColor: COLORS.BACKGROUND },
+  scrollContent: { paddingBottom: SPACING.XLARGE },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   loadingText: {
     marginTop: SPACING.MEDIUM,
     fontSize: FONTS.REGULAR,
@@ -505,17 +639,13 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 24,
     marginBottom: SPACING.LARGE,
   },
-  avatarContainer: {
-    position: "relative",
-    marginBottom: SPACING.MEDIUM,
-  },
+  avatarContainer: { position: "relative", marginBottom: SPACING.MEDIUM },
   profileImage: {
     width: 120,
     height: 120,
     borderRadius: 60,
     borderWidth: 4,
     borderColor: COLORS.WHITE,
-    backgroundColor: COLORS.WHITE,
   },
   editAvatarButton: {
     position: "absolute",
@@ -536,20 +666,17 @@ const styles = StyleSheet.create({
     color: COLORS.WHITE,
     marginBottom: SPACING.TINY,
   },
-  userRole: {
-    fontSize: FONTS.REGULAR,
-    color: "rgba(255, 255, 255, 0.9)",
-  },
+  userRole: { fontSize: FONTS.REGULAR, color: "rgba(255,255,255,0.9)" },
   infoCard: {
     backgroundColor: COLORS.WHITE,
     borderRadius: 16,
     padding: SPACING.LARGE,
     marginHorizontal: SPACING.MEDIUM,
     marginBottom: SPACING.LARGE,
-    shadowColor: COLORS.BLACK,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 4,
     elevation: 3,
   },
   cardHeader: {
@@ -558,11 +685,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.LARGE,
     gap: SPACING.SMALL,
   },
-  cardTitle: {
-    fontSize: FONTS.LARGE,
-    fontWeight: "bold",
-    color: COLORS.TEXT,
-  },
+  cardTitle: { fontSize: FONTS.LARGE, fontWeight: "bold", color: COLORS.TEXT },
   infoRow: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -571,20 +694,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F0F0F0",
   },
-  infoContent: {
-    flex: 1,
-    marginLeft: SPACING.MEDIUM,
-  },
+  infoContent: { flex: 1, marginLeft: SPACING.MEDIUM },
   infoLabel: {
     fontSize: FONTS.SMALL,
     color: COLORS.GRAY,
     marginBottom: SPACING.TINY,
   },
-  infoValue: {
-    fontSize: FONTS.REGULAR,
-    color: COLORS.TEXT,
-    fontWeight: "500",
-  },
+  infoValue: { fontSize: FONTS.REGULAR, color: COLORS.TEXT, fontWeight: "500" },
   editButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -595,21 +711,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: SPACING.SMALL,
     gap: SPACING.SMALL,
-    shadowColor: COLORS.PRIMARY,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
   },
   editButtonText: {
     color: COLORS.WHITE,
     fontSize: FONTS.REGULAR,
     fontWeight: "bold",
   },
-  section: {
-    marginBottom: SPACING.LARGE,
-    paddingHorizontal: SPACING.MEDIUM,
-  },
+  section: { marginBottom: SPACING.LARGE, paddingHorizontal: SPACING.MEDIUM },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -621,201 +729,231 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: COLORS.TEXT,
   },
-  emptyContainer: {
+  noDataContainer: {
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: SPACING.XLARGE * 2,
-    backgroundColor: COLORS.WHITE,
-    borderRadius: 16,
-    paddingHorizontal: SPACING.LARGE,
+    paddingVertical: SPACING.LARGE,
   },
-  emptyText: {
-    fontSize: FONTS.MEDIUM,
-    fontWeight: "bold",
-    color: COLORS.TEXT,
-    marginTop: SPACING.MEDIUM,
-  },
-  emptySubtext: {
-    fontSize: FONTS.SMALL,
+  noDataText: {
+    marginTop: SPACING.SMALL,
+    fontSize: FONTS.REGULAR,
     color: COLORS.GRAY,
-    marginTop: SPACING.TINY,
     textAlign: "center",
   },
+  quizScroll: { marginTop: SPACING.SMALL },
   quizCard: {
-    flexDirection: "row",
-    alignItems: "center",
+    width: 140,
     backgroundColor: COLORS.WHITE,
     borderRadius: 12,
     padding: SPACING.MEDIUM,
-    marginBottom: SPACING.MEDIUM,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 2 },
+    marginRight: SPACING.SMALL,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 2,
     elevation: 2,
-  },
-  quizHeader: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  quizIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: `${COLORS.PRIMARY}15`,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: SPACING.MEDIUM,
-  },
-  quizInfo: {
-    flex: 1,
   },
   quizTitle: {
     fontSize: FONTS.MEDIUM,
     fontWeight: "bold",
-    color: COLORS.TEXT,
-    marginBottom: SPACING.TINY,
-  },
-  quizDescription: {
-    fontSize: FONTS.SMALL,
-    color: COLORS.GRAY,
-    marginBottom: SPACING.TINY,
-    lineHeight: 18,
-  },
-  quizMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
+    textAlign: "center",
     marginTop: SPACING.TINY,
+    marginBottom: SPACING.TINY,
   },
-  quizDate: {
-    fontSize: FONTS.TINY,
-    color: COLORS.GRAY,
+  quizDate: { fontSize: FONTS.SMALL, color: COLORS.GRAY },
+  quizDescription: {
+    fontSize: FONTS.REGULAR,
+    color: COLORS.TEXT,
+    marginVertical: SPACING.MEDIUM,
+    lineHeight: 20,
+  },
+  questionsList: { marginTop: SPACING.MEDIUM },
+  questionItem: {
+    backgroundColor: "#F9F9F9",
+    padding: SPACING.SMALL,
+    borderRadius: 8,
+    marginBottom: SPACING.SMALL,
   },
   settingItem: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: COLORS.WHITE,
-    borderRadius: 12,
-    padding: SPACING.MEDIUM,
-    marginBottom: SPACING.SMALL,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    alignItems: "center",
+    paddingVertical: SPACING.MEDIUM,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
   },
   settingLeft: {
     flexDirection: "row",
     alignItems: "center",
-    flex: 1,
+    gap: SPACING.SMALL,
   },
   settingIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: `${COLORS.PRIMARY}15`,
-    alignItems: "center",
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: "#EAF0FF",
     justifyContent: "center",
-    marginRight: SPACING.MEDIUM,
+    alignItems: "center",
   },
-  logoutIconContainer: {
-    backgroundColor: `${COLORS.ERROR}15`,
-  },
-  settingText: {
-    fontSize: FONTS.REGULAR,
-    color: COLORS.TEXT,
-    fontWeight: "500",
-  },
-  logoutText: {
-    color: COLORS.ERROR,
-  },
+  logoutIconContainer: { backgroundColor: "#FFEAEA" },
+  settingText: { fontSize: FONTS.REGULAR, color: COLORS.TEXT },
+  logoutText: { color: COLORS.ERROR },
   modalOverlay: {
     flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
   },
   modalContainer: {
-    width: "85%",
-    maxWidth: 400,
     backgroundColor: COLORS.WHITE,
-    borderRadius: 20,
-    padding: SPACING.LARGE,
-    alignItems: "center",
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    borderRadius: 16,
+    width: "90%",
+    maxHeight: "80%",
+    padding: 0,
   },
-  modalCloseButton: {
-    position: "absolute",
-    top: SPACING.MEDIUM,
-    right: SPACING.MEDIUM,
-    padding: SPACING.SMALL,
-    zIndex: 1,
-  },
-  modalIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: `${COLORS.PRIMARY}15`,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: SPACING.MEDIUM,
-  },
-  modalTitle: {
-    fontSize: FONTS.XLARGE,
-    fontWeight: "bold",
-    color: COLORS.TEXT,
-    marginBottom: SPACING.LARGE,
-    textAlign: "center",
-  },
-  modalContentContainer: {
-    width: "100%",
-    marginBottom: SPACING.LARGE,
-  },
-  modalInfoRow: {
+  modalHeader: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: SPACING.MEDIUM,
-    paddingBottom: SPACING.MEDIUM,
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: SPACING.LARGE,
     borderBottomWidth: 1,
     borderBottomColor: "#F0F0F0",
   },
-  modalInfoContent: {
-    flex: 1,
-    marginLeft: SPACING.MEDIUM,
-  },
-  modalInfoLabel: {
-    fontSize: FONTS.SMALL,
-    color: COLORS.GRAY,
-    marginBottom: SPACING.TINY,
-  },
-  modalInfoValue: {
-    fontSize: FONTS.REGULAR,
+  modalTitle: {
+    fontSize: FONTS.LARGE,
+    fontWeight: "bold",
     color: COLORS.TEXT,
-    fontWeight: "500",
+  },
+  modalCloseButton: {
+    padding: SPACING.SMALL,
+  },
+  modalScroll: {
+    flex: 1,
+    padding: SPACING.LARGE,
+  },
+  inputGroup: {
+    marginBottom: SPACING.LARGE,
+  },
+  inputLabel: {
+    fontSize: FONTS.REGULAR,
+    fontWeight: "600",
+    color: COLORS.TEXT,
+    marginBottom: SPACING.SMALL,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    borderRadius: 12,
+    padding: SPACING.MEDIUM,
+    fontSize: FONTS.REGULAR,
+    backgroundColor: "#F9F9F9",
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    borderRadius: 12,
+    backgroundColor: "#F9F9F9",
+  },
+  picker: {
+    width: "100%",
+    height: 50,
+    color: COLORS.TEXT,
   },
   modalButton: {
     backgroundColor: COLORS.PRIMARY,
-    paddingVertical: SPACING.MEDIUM,
-    paddingHorizontal: SPACING.XLARGE,
     borderRadius: 12,
-    minWidth: 120,
+    paddingVertical: SPACING.MEDIUM,
     alignItems: "center",
-    shadowColor: COLORS.PRIMARY,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    margin: SPACING.LARGE,
   },
   modalButtonText: {
     color: COLORS.WHITE,
     fontSize: FONTS.REGULAR,
+    fontWeight: "bold",
+  },
+  editModalContainer: {
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 16,
+    width: "90%",
+    maxHeight: "80%",
+    overflow: "hidden",
+  },
+  editModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: SPACING.LARGE,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EEE",
+  },
+  editModalTitle: {
+    fontSize: FONTS.LARGE,
+    fontWeight: "bold",
+    color: COLORS.TEXT,
+  },
+  editModalClose: { padding: SPACING.SMALL },
+  editModalBody: { padding: SPACING.LARGE },
+  editInputGroup: { marginBottom: SPACING.MEDIUM },
+  editInputLabel: {
+    fontSize: FONTS.REGULAR,
+    fontWeight: "600",
+    color: COLORS.TEXT,
+    marginBottom: SPACING.TINY,
+  },
+  editInput: {
+    borderWidth: 1,
+    borderColor: "#DDD",
+    borderRadius: 12,
+    padding: SPACING.MEDIUM,
+    backgroundColor: "#FAFAFA",
+    fontSize: FONTS.REGULAR,
+  },
+  editPickerContainer: {
+    borderWidth: 1,
+    borderColor: "#DDD",
+    borderRadius: 12,
+    backgroundColor: "#FAFAFA",
+  },
+  editPicker: { width: "100%", height: 50, color: COLORS.TEXT },
+  editModalButton: {
+    backgroundColor: COLORS.PRIMARY,
+    borderRadius: 12,
+    paddingVertical: SPACING.MEDIUM,
+    alignItems: "center",
+    margin: SPACING.LARGE,
+  },
+  editModalButtonText: {
+    color: COLORS.WHITE,
+    fontSize: FONTS.REGULAR,
+    fontWeight: "bold",
+  },
+  genderContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: SPACING.TINY,
+  },
+  genderOption: {
+    flex: 1,
+    paddingVertical: SPACING.SMALL,
+    paddingHorizontal: SPACING.MEDIUM,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#DDD",
+    backgroundColor: "#FAFAFA",
+    alignItems: "center",
+    marginHorizontal: SPACING.TINY,
+  },
+  genderOptionSelected: {
+    backgroundColor: COLORS.PRIMARY,
+    borderColor: COLORS.PRIMARY,
+  },
+  genderOptionText: {
+    fontSize: FONTS.REGULAR,
+    color: COLORS.GRAY,
+    fontWeight: "500",
+  },
+  genderOptionTextSelected: {
+    color: COLORS.WHITE,
     fontWeight: "bold",
   },
 });

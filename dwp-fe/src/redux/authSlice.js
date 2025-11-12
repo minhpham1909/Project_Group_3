@@ -30,8 +30,11 @@ const authSlice = createSlice({
         state.user.name = action.payload;
       }
     },
+    updateUser: (state, action) => {
+      state.user = { ...state.user, ...action.payload.user }; // Hoặc merge profile nếu cần
+    },
   },
 });
 
-export const { login, logout, updateUserName } = authSlice.actions;
+export const { login, logout, updateUserName, updateUser } = authSlice.actions;
 export default authSlice.reducer;
