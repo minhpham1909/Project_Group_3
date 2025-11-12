@@ -9,9 +9,16 @@ const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
+    // Trong reducers
     login(state, action) {
-      state.isLoggedIn = true;
-      state.user = action.payload;
+      if (action.payload) {
+        // ✅ Check payload tồn tại
+        state.isLoggedIn = true;
+        state.user = action.payload;
+      } else {
+        // Không set loggedIn nếu payload null
+        state.isLoggedIn = false;
+      }
     },
     logout(state) {
       state.isLoggedIn = false;

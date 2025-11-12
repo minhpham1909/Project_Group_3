@@ -75,7 +75,13 @@ function HomeStack() {
 
 // Main Tab (giữ nguyên)
 function Main() {
-  const role = useSelector((state) => state.auth.user?.role);
+  const user = useSelector((state) => state.auth.user); // Lấy full user
+  const role = user?.role;
+
+  // ✅ THÊM GUARD: Nếu user null → không render Main, fallback
+  if (!user) {
+    return <Text>Loading...</Text>; // Hoặc navigate back to Login via dispatch(logout())
+  }
 
   return (
     <Tab.Navigator

@@ -9,17 +9,21 @@ import {
   Image,
   Linking,
   RefreshControl, // ✅ Thêm import RefreshControl
+  Modal, // ✅ Thêm import Modal
+  FlatList, // ✅ Thêm import FlatList cho danh sách thành phố
+  ActivityIndicator, // ✅ Thêm import ActivityIndicator cho loading
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux"; // ✅ Thêm useDispatch nếu cần update Redux
 import CutMate from "../../assets/CutMate.svg";
 import { API_ROOT, COLORS, FONTS, SPACING } from "../utils/constant";
 
 const HomeScreen = ({ navigation }) => {
   // Redux state
   const user = useSelector((state) => state.auth.user);
+  const dispatch = useDispatch(); // ✅ Thêm dispatch nếu cần update user trong Redux
   const role = user?.role;
   const userId = user?.id;
   const token = user?.token;
@@ -33,6 +37,24 @@ const HomeScreen = ({ navigation }) => {
   const [pendingCount, setPendingCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false); // ✅ Thêm state cho refresh
 
+  // ✅ Thêm state cho modal địa chỉ
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [selectedCity, setSelectedCity] = useState("");
+  const [userAddress, setUserAddress] = useState("");
+  const [isFirstLogin, setIsFirstLogin] = useState(false);
+  const [updatingAddress, setUpdatingAddress] = useState(false); // Loading khi update
+
+  // Cities list
+  const cities = [
+    "Hà Nội",
+    "TP. Hồ Chí Minh",
+    "Đà Nẵng",
+    "Hải Phòng",
+    "Cần Thơ",
+    "Nha Trang",
+    "Đà Lạt",
+  ];
+
   // Fetch all stores
   const getAllStore = async () => {
     try {
@@ -43,6 +65,27 @@ const HomeScreen = ({ navigation }) => {
       console.error("Error fetching stores:", error);
     }
   };
+
+  // ✅ Hoàn thiện hàm getUser để fetch và update user data
+  const getUser = async () => {
+    // if (!userId || !token) return;
+    try {
+      const response = await axios.get(`${API_ROOT}/user/${userId}`);
+console.log("user: ",response.data);
+
+      if (response.status === 200 && response.data) {
+        setIsFirstLogin(response.data.isFirstLogin);
+        console.log("Updated user data:", response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching user:", error);
+    }
+  };
+
+  useEffect(() => {
+    // getAllStore();
+    getUser();
+  }, []);
 
   // Fetch notifications / orders based on role
   const fetchNotifications = async () => {
@@ -78,22 +121,64 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
+  // ✅ Hàm update địa chỉ người dùng
+  const updateUserAddress = async () => {
+    if (!selectedCity || !userAddress.trim()) {
+      alert("Vui lòng chọn thành phố và nhập địa chỉ cụ thể.");
+      return;
+    }
+
+    setUpdatingAddress(true);
+    try {
+      const fullAddress = `${userAddress}, ${selectedCity}`;
+      const response = await axios.put(
+        `${API_ROOT}/user/update-address/${userId}`, // Giả sử endpoint này tồn tại, điều chỉnh nếu cần
+        { address: fullAddress, isFirstLogin: false }, // Update cả isFirstLogin
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.status === 200) {
+        // Update Redux nếu cần (giả sử có action updateUser)
+        // dispatch(updateUser({ ...user, address: fullAddress, isFirstLogin: false }));
+        setShowAddressModal(false);
+        alert("Địa chỉ đã được cập nhật thành công!");
+        // Fetch lại user để sync state
+        await getUser();
+      }
+    } catch (error) {
+      console.error("Error updating address:", error);
+      alert("Có lỗi xảy ra khi cập nhật địa chỉ. Vui lòng thử lại.");
+    } finally {
+      setUpdatingAddress(false);
+    }
+  };
+
   // ✅ Hàm refresh toàn bộ
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([getAllStore(), fetchNotifications()]);
+    await Promise.all([getAllStore(), fetchNotifications(), getUser()]);
     setRefreshing(false);
   };
 
   // Initial fetch
   useEffect(() => {
     getAllStore();
-  }, []);
+    if (userId && token) {
+      getUser(); // ✅ Gọi getUser để fetch dữ liệu user mới nhất
+    }
+  }, [userId, token]);
 
   // Fetch notifications when user is ready
   useEffect(() => {
     if (user) fetchNotifications();
   }, [user]);
+
+  // ✅ Kiểm tra isFirstLogin và hiển thị modal (sau khi fetch user)
+  useEffect(() => {
+    if (isFirstLogin) {
+      setShowAddressModal(true);
+    }
+  }, [isFirstLogin]);
 
   // Filter and sort stores
   useEffect(() => {
@@ -137,6 +222,26 @@ const HomeScreen = ({ navigation }) => {
   const openServiceDetail = (serviceId) => {
     navigation.navigate("ProductDetail", { serviceId });
   };
+
+  // Render item thành phố
+  const renderCityItem = ({ item }) => (
+    <TouchableOpacity
+      style={[
+        styles.modalItem,
+        selectedCity === item && styles.selectedModalItem,
+      ]}
+      onPress={() => setSelectedCity(item)}
+    >
+      <Text
+        style={[
+          styles.modalItemText,
+          selectedCity === item && styles.selectedModalItemText,
+        ]}
+      >
+        {item}
+      </Text>
+    </TouchableOpacity>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -345,11 +450,97 @@ const HomeScreen = ({ navigation }) => {
 
         {/* ... Các section blog, tips giữ nguyên ... */}
       </ScrollView>
+
+      {/* ✅ Modal chọn địa chỉ kiểu bottom sheet */}
+      <Modal
+        visible={showAddressModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAddressModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {selectedCity ? (
+              <Text style={styles.modalTitle}>
+                Nhập địa chỉ tại {selectedCity}
+              </Text>
+            ) : (
+              <Text style={styles.modalTitle}>Chọn thành phố</Text>
+            )}
+            {!selectedCity ? (
+              <FlatList
+                data={cities}
+                keyExtractor={(item) => item}
+                renderItem={renderCityItem}
+                showsVerticalScrollIndicator={false}
+              />
+            ) : (
+              <ScrollView
+                style={styles.addressScroll}
+                showsVerticalScrollIndicator={false}
+              >
+                <Text style={styles.modalSubtitle}>
+                  Nhập địa chỉ chi tiết (số nhà, đường, phường...)
+                </Text>
+                <TextInput
+                  style={styles.addressInput}
+                  placeholder="Ví dụ: 123 Đường ABC, Quận 1"
+                  placeholderTextColor={COLORS.GRAY}
+                  value={userAddress}
+                  onChangeText={setUserAddress}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+              </ScrollView>
+            )}
+            <View style={styles.modalBottom}>
+              {selectedCity ? (
+                <View style={styles.addressButtons}>
+                  <TouchableOpacity
+                    style={styles.changeCityButton}
+                    onPress={() => {
+                      setSelectedCity("");
+                      setUserAddress("");
+                    }}
+                  >
+                    <Text style={styles.changeCityText}>
+                      Thay đổi thành phố
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.confirmButton,
+                      (!userAddress.trim() || updatingAddress) &&
+                        styles.confirmButtonDisabled,
+                    ]}
+                    onPress={updateUserAddress}
+                    disabled={!userAddress.trim() || updatingAddress}
+                  >
+                    {updatingAddress ? (
+                      <ActivityIndicator color={COLORS.WHITE} />
+                    ) : (
+                      <Text style={styles.confirmButtonText}>Xác nhận</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.modalCloseButton}
+                  onPress={() => setShowAddressModal(false)}
+                >
+                  <Text style={styles.modalCloseText}>Đóng</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
 
-// Blogs và styles giữ nguyên, chỉ sửa badgeText
+// Blogs và styles giữ nguyên, thêm styles cho modal
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.BACKGROUND },
   scrollView: { padding: SPACING.MEDIUM, paddingBottom: SPACING.XLARGE },
@@ -522,6 +713,119 @@ const styles = StyleSheet.create({
     fontSize: FONTS.SMALL,
     color: COLORS.GRAY,
     marginTop: SPACING.TINY,
+  },
+
+  // ✅ Styles cho Modal kiểu bottom sheet
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContainer: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingVertical: 20,
+    maxHeight: "70%",
+    justifyContent: "space-between",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#000000",
+    textAlign: "center",
+    marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  modalItem: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+  selectedModalItem: {
+    backgroundColor: "#FAFAFA",
+  },
+  modalItemText: {
+    fontSize: 16,
+    color: "#000000",
+  },
+  selectedModalItemText: {
+    color: "#e91e63",
+    fontWeight: "500",
+  },
+  addressScroll: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    color: "#666666",
+    marginBottom: 12,
+    paddingHorizontal: 20,
+  },
+  addressInput: {
+    backgroundColor: "#FAFAFA",
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: "#000000",
+    textAlignVertical: "top",
+    minHeight: 100,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+  },
+  modalBottom: {
+    borderTopWidth: 1,
+    borderTopColor: "#F0F0F0",
+    paddingTop: 16,
+  },
+  addressButtons: {
+    flexDirection: "row",
+    gap: 12,
+    paddingHorizontal: 20,
+  },
+  changeCityButton: {
+    flex: 1,
+    paddingVertical: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    alignItems: "center",
+  },
+  changeCityText: {
+    fontSize: 16,
+    color: "#666666",
+    fontWeight: "500",
+  },
+  confirmButton: {
+    flex: 1,
+    paddingVertical: 12,
+    backgroundColor: "#e91e63",
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  confirmButtonDisabled: {
+    backgroundColor: "#CCCCCC",
+  },
+  confirmButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  modalCloseButton: {
+    paddingVertical: 16,
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: "#F0F0F0",
+  },
+  modalCloseText: {
+    fontSize: 16,
+    color: "#e91e63",
+    fontWeight: "500",
   },
 });
 

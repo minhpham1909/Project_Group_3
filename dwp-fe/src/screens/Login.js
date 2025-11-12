@@ -7,10 +7,10 @@ import {
   StyleSheet,
   Modal,
   Alert,
-  Image,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useDispatch } from "react-redux";
@@ -26,58 +26,88 @@ export default function Login({ navigation }) {
   const [password, setPassword] = useState("");
   const [codeSent, setCodeSent] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] = useState(false); // ✅ Thêm loading state
 
   const dispatch = useDispatch();
+
   const handleLogin = async () => {
+    if (!identifier.trim() || !password.trim()) {
+      setErrorMessage("Vui lòng nhập đầy đủ thông tin.");
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage("");
     try {
       const res = await axios.post(`${API_ROOT}/auth/sign-in`, {
-        identifier: identifier,
-        password: password,
+        identifier: identifier.trim(),
+        password: password.trim(),
       });
 
-      console.log("Login successful");
-      dispatch(login(res.data.userInfo));
-      console.log(res.data.userInfo);
-      setErrorMessage("");
-    } catch (error) {
-      console.log("Login failed");
-      if (error.response) {
-        // Nếu có phản hồi từ server, hiển thị thông báo lỗi
-        const message = error.response.data.message || "Đăng nhập thất bại";
-        setErrorMessage(message);
-      } else if (error.request) {
-        // Nếu không nhận được phản hồi từ server
-        setErrorMessage("Không thể kết nối đến server. Vui lòng thử lại sau.");
-      } else {
-        // Các lỗi khác (ví dụ: lỗi khi cấu hình yêu cầu)
-        setErrorMessage("Đã xảy ra lỗi. Vui lòng thử lại.");
+      console.log("Full login response:", res.data); // ✅ Debug log
+
+      // ✅ Validate response: Chỉ dispatch nếu success và có userInfo hợp lệ
+      if (!res.data.success || !res.data.userInfo || !res.data.userInfo.id) {
+        throw new Error(
+          res.data.message || "Thông tin đăng nhập không hợp lệ."
+        );
       }
-      console.log(error.response || error.message);
+
+      console.log("Login successful - dispatching user:", res.data.userInfo);
+      dispatch(login(res.data.userInfo)); // ✅ Chỉ dispatch nếu valid
+    } catch (error) {
+      console.log("Login error details:", {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
+
+      let message = "Đăng nhập thất bại. Vui lòng thử lại.";
+      if (error.response) {
+        message = error.response.data.message || message;
+      } else if (error.request) {
+        message = "Không thể kết nối đến server. Vui lòng kiểm tra kết nối.";
+      }
+      setErrorMessage(message);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập email.");
+      return;
+    }
+
     try {
-      const res = await axios.post(
-        `${API_ROOT}/user/forget-password`,
-        {
-          email: email,
-        }
-      );
-      console.log(res.data.message);
+      const res = await axios.post(`${API_ROOT}/user/forget-password`, {
+        email: email.trim(),
+      });
+      console.log("Forgot password response:", res.data.message);
       setCodeSent(true);
-      Alert.alert("Mã xác thực", "Mã xác thực đã được gửi đến email của bạn.");
+      Alert.alert("Thành công", "Mã xác thực đã được gửi đến email của bạn.");
     } catch (error) {
-      console.log(error.response ? error.response.data : error);
+      console.log(
+        "Forgot password error:",
+        error.response?.data || error.message
+      );
       Alert.alert(
         "Lỗi",
-        "Không thể gửi mã xác thực. Vui lòng kiểm tra lại email."
+        error.response?.data?.message ||
+          "Không thể gửi mã xác thực. Vui lòng kiểm tra lại email."
       );
     }
   };
 
   const handleResendCode = () => {
     handleForgotPassword();
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    setCodeSent(false);
+    setEmail("");
   };
 
   return (
@@ -115,10 +145,11 @@ export default function Login({ navigation }) {
               value={identifier}
               onChangeText={(text) => {
                 setIdentifier(text);
-                setErrorMessage("");
+                if (errorMessage) setErrorMessage(""); // Clear error on input
               }}
               autoCapitalize="none"
               autoCorrect={false}
+              editable={!loading} // Disable khi loading
             />
           </View>
 
@@ -136,10 +167,11 @@ export default function Login({ navigation }) {
               value={password}
               onChangeText={(text) => {
                 setPassword(text);
-                setErrorMessage("");
+                if (errorMessage) setErrorMessage(""); // Clear error on input
               }}
               secureTextEntry={true}
               autoCapitalize="none"
+              editable={!loading} // Disable khi loading
             />
           </View>
 
@@ -153,6 +185,7 @@ export default function Login({ navigation }) {
           <TouchableOpacity
             style={styles.forgotPassword}
             onPress={() => setModalVisible(true)}
+            disabled={loading}
           >
             <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>
           </TouchableOpacity>
@@ -160,18 +193,26 @@ export default function Login({ navigation }) {
           <TouchableOpacity
             style={[
               styles.loginButton,
-              (!identifier || !password) && styles.loginButtonDisabled,
+              (!identifier.trim() || !password.trim() || loading) &&
+                styles.loginButtonDisabled,
             ]}
             onPress={handleLogin}
-            disabled={!identifier || !password}
+            disabled={!identifier.trim() || !password.trim() || loading}
           >
-            <Text style={styles.loginButtonText}>Đăng nhập</Text>
+            {loading ? (
+              <ActivityIndicator color={COLORS.WHITE} />
+            ) : (
+              <Text style={styles.loginButtonText}>Đăng nhập</Text>
+            )}
           </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Chưa có tài khoản? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate("Register")}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Register")}
+            disabled={loading}
+          >
             <Text style={styles.registerLink}>Đăng ký ngay</Text>
           </TouchableOpacity>
         </View>
@@ -182,22 +223,11 @@ export default function Login({ navigation }) {
         animationType="slide"
         transparent={true}
         visible={modalVisible}
-        onRequestClose={() => {
-          setModalVisible(false);
-          setCodeSent(false);
-          setEmail("");
-        }}
+        onRequestClose={closeModal}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalView}>
-            <TouchableOpacity
-              style={styles.closeIcon}
-              onPress={() => {
-                setModalVisible(false);
-                setCodeSent(false);
-                setEmail("");
-              }}
-            >
+            <TouchableOpacity style={styles.closeIcon} onPress={closeModal}>
               <Ionicons name="close" size={24} color={COLORS.GRAY} />
             </TouchableOpacity>
 
@@ -239,11 +269,7 @@ export default function Login({ navigation }) {
               <View style={styles.modalButtonContainer}>
                 <TouchableOpacity
                   style={[styles.modalButton, styles.modalButtonSecondary]}
-                  onPress={() => {
-                    setModalVisible(false);
-                    setCodeSent(false);
-                    setEmail("");
-                  }}
+                  onPress={closeModal}
                 >
                   <Text style={styles.modalButtonSecondaryText}>Đóng</Text>
                 </TouchableOpacity>
@@ -258,10 +284,10 @@ export default function Login({ navigation }) {
               <TouchableOpacity
                 style={[
                   styles.modalButton,
-                  !email && styles.modalButtonDisabled,
+                  !email.trim() && styles.modalButtonDisabled,
                 ]}
                 onPress={handleForgotPassword}
-                disabled={!email}
+                disabled={!email.trim()}
               >
                 <Text style={styles.modalButtonText}>Gửi mã xác thực</Text>
               </TouchableOpacity>
