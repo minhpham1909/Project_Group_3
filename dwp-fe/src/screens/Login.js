@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useDispatch } from "react-redux";
 import { login } from "../redux/authSlice";
 import axios from "axios";
-import SLAYME from "../../assets/SLAYME.svg";
+import CutMate from "../../assets/CutMate.svg";
 import { API_ROOT, COLORS, FONTS, SPACING } from "../utils/constant";
 
 export default function Login({ navigation }) {
@@ -92,7 +92,7 @@ export default function Login({ navigation }) {
       >
         <View style={styles.header}>
           <View style={styles.viewImage}>
-            <SLAYME width={180} height={80} />
+            <CutMate width={180} height={80} />
           </View>
           <Text style={styles.title}>Chào mừng trở lại!</Text>
           <Text style={styles.subtitle}>

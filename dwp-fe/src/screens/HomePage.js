@@ -13,7 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import { useSelector } from "react-redux";
-import SLAYME from "../../assets/SLAYME.svg";
+import CutMate from "../../assets/CutMate.svg";
 import { API_ROOT, COLORS, FONTS, SPACING } from "../utils/constant";
 
 const HomeScreen = ({ navigation }) => {
@@ -138,7 +138,7 @@ const HomeScreen = ({ navigation }) => {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <SLAYME width={160} height={70} style={{ marginTop: -32 }} />
+            <CutMate width={160} height={80} style={{ marginTop: -32 }} />
           </View>
 
           {/* Search and Icons */}

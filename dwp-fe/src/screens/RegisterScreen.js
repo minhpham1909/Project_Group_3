@@ -15,7 +15,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import { API_ROOT, COLORS, FONTS, SPACING } from "../utils/constant";
-import SLAYME from "../../assets/SLAYME.svg";
+import CutMate from "../../assets/CutMate.svg";
 
 export default function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState();
@@ -116,10 +116,10 @@ export default function RegisterScreen({ navigation }) {
       >
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <SLAYME width={180} height={80} />
+            <CutMate width={180} height={80} />
           </View>
           <Text style={styles.title}>Tạo tài khoản mới</Text>
-          <Text style={styles.subtitle}>Đăng ký để bắt đầu sử dụng SlayMe</Text>
+          <Text style={styles.subtitle}>Đăng ký để bắt đầu sử dụng CutMate</Text>
         </View>
 
         <View style={styles.avatarContainer}>
