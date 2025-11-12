@@ -95,12 +95,19 @@ export default function Login({ navigation }) {
             <SLAYME width={180} height={80} />
           </View>
           <Text style={styles.title}>Chào mừng trở lại!</Text>
-          <Text style={styles.subtitle}>Đăng nhập để tiếp tục sử dụng Style Me</Text>
+          <Text style={styles.subtitle}>
+            CutMate - Cắt ở đâu cũng đẹp - Vì có Mate
+          </Text>
         </View>
 
         <View style={styles.formContainer}>
           <View style={styles.inputWrapper}>
-            <Ionicons name="person-outline" size={20} color={COLORS.GRAY} style={styles.inputIcon} />
+            <Ionicons
+              name="person-outline"
+              size={20}
+              color={COLORS.GRAY}
+              style={styles.inputIcon}
+            />
             <TextInput
               style={styles.input}
               placeholder="Email hoặc tên đăng nhập"
@@ -116,7 +123,12 @@ export default function Login({ navigation }) {
           </View>
 
           <View style={styles.inputWrapper}>
-            <Ionicons name="lock-closed-outline" size={20} color={COLORS.GRAY} style={styles.inputIcon} />
+            <Ionicons
+              name="lock-closed-outline"
+              size={20}
+              color={COLORS.GRAY}
+              style={styles.inputIcon}
+            />
             <TextInput
               style={styles.input}
               placeholder="Mật khẩu"
