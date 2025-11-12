@@ -540,7 +540,7 @@ const HomeScreen = ({ navigation }) => {
                 />
                 <Text style={styles.adviceCardText}>
                   Băn khoăn không biết chọn gì?{" "}
-                  <Text style={styles.adviceCardHighlight}>StyleMe Brain</Text>{" "}
+                  <Text style={styles.adviceCardHighlight}>CutMate Brain</Text>{" "}
                   sẽ gợi ý cho bạn!
                 </Text>
               </TouchableOpacity>

@@ -283,7 +283,7 @@ export default function Test({ navigation }) {
           </View>
 
           <View style={styles.feedbackSection}>
-            <Text style={styles.sectionTitle}>Nhận Xét Từ StyleMe Brain</Text>
+            <Text style={styles.sectionTitle}>Nhận Xét Từ CutMate Brain</Text>
             <View style={styles.feedbackCard}>
               <ScrollView
                 style={styles.feedbackScroll}
