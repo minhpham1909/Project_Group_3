@@ -279,6 +279,42 @@ const approveRequest = async (req, res) => {
   }
 };
 
+const updateUser = async (req, res) => {
+  const { userId } = req.params; // ID người dùng từ params
+  const updateData = req.body; // dữ liệu update từ body
+
+  console.log(updateData);
+
+  try {
+    // Loại bỏ email và password nếu người dùng gửi
+    if (updateData.account) {
+      delete updateData.account.email;
+      delete updateData.account.password;
+    }
+
+    // Cập nhật user
+    const updatedUser = await userModel.findByIdAndUpdate(
+      userId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({
+      message: "User updated successfully",
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("Error updating user:", error);
+    res
+      .status(500)
+      .json({ message: "Error updating user", error: error.message });
+  }
+};
+
 module.exports = {
   getAllUsers,
   forgotPassword,
@@ -288,4 +324,5 @@ module.exports = {
   requestRoleSupplier,
   getRequest,
   approveRequest,
+  updateUser,
 };
