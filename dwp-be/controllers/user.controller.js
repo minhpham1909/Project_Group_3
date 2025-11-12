@@ -157,7 +157,7 @@ const chatBot = async (req, res) => {
         console.log("Danh sách cửa hàng:", stores);
 
         // Tạo câu hỏi phụ cho AI với thông tin dịch vụ và cửa hàng
-        additionalPrompt = `Dưới đây là các dịch vụ và cửa hàng mà tôi có thể gợi ý cho bạn:\n`;
+        additionalPrompt = `Trả lời bằng văn bản thuần, không dùng ký tự #, *, - ở đầu dòng, không dùng code block, không dùng markdown. Dưới đây là các dịch vụ và cửa hàng mà tôi có thể gợi ý cho bạn:\n`;
 
         // Lặp qua các cửa hàng và dịch vụ để tạo danh sách gợi ý
         stores.forEach((store) => {
@@ -166,7 +166,7 @@ const chatBot = async (req, res) => {
           });
         });
         additionalPrompt +=
-          "Hãy chọn một dịch vụ hoặc cửa hàng phù hợp với bạn.";
+          "Hãy chọn một dịch vụ hoặc cửa hàng phù hợp với bạn. Trả lời bằng văn bản thuần, không dùng ký tự #, *, - ở đầu dòng, không dùng code block, không dùng markdown";
       } catch (error) {
         return res
           .status(500)
@@ -186,7 +186,17 @@ const chatBot = async (req, res) => {
       },
       body: JSON.stringify({
         model: "gpt-4o",
-        messages: [{ role: "user", content: finalQuestion }],
+        messages: [
+          {
+            role: "system",
+            content:
+              "Bạn là một trợ lý thông minh. Trả lời NGẮN GỌN, rõ ràng, dễ hiểu. Tuyệt đối KHÔNG sử dụng ký tự markdown như #, ##, **, -, *, hoặc code block. Trả lời hoàn toàn bằng văn bản thuần, mỗi phần cách nhau bằng dòng trống nếu cần.",
+          },
+          {
+            role: "user",
+            content: finalQuestion,
+          },
+        ],
         max_tokens: 1000,
         temperature: 0.7,
       }),

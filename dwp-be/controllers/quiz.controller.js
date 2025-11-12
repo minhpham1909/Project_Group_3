@@ -6,7 +6,7 @@ require("dotenv").config();
 const createRandomQuestionInQuiz = async (req, res) => {
     try {
         const questionsRandom = await questionModel.aggregate([
-            { $sample: { size: 6 } }
+            { $sample: { size: 5 } }
         ]);
 
         const newQuiz = new quizModel({
@@ -104,12 +104,12 @@ const commentAI = async (questionAndAnswer) => {
         const questionAnswerText = JSON.stringify(questionAndAnswer);
         const prompt = `Dưới đây là câu hỏi và câu trả lời của bài kiểm tra: ${questionAnswerText}.
         
-        Dựa vào dữ liệu trên, hãy đưa ra:
-        1. **Lời khuyên** về việc chăm sóc và cải thiện.
-        2. **Phương pháp** cải thiện tình trạng .
-        3. **Tiến trình phục hồi** dựa trên các câu trả lời.
+        Dựa vào dữ liệu trên, trả lời bằng văn bản thuần, không dùng ký tự #, *, - ở đầu dòng, không dùng code block, không dùng markdown. hãy đưa ra:
+        1. Lời khuyên về việc chăm sóc và cải thiện.
+        2. Phương pháp cải thiện tình trạng .
+        3. Tiến trình phục hồi dựa trên các câu trả lời.
 
-        Lưu ý: Cung cấp lời khuyên, phương pháp và tiến trình phục hồi một cách chi tiết và có khoa học.`;
+        Lưu ý: Cung cấp lời khuyên, phương pháp và tiến trình phục hồi một cách chi tiết và có khoa học. Bỏ các kí tự đặc biệt thừa gây mất tính thẩm mĩ và khó hiểu`;
 
         const response = await fetch("https://api.yescale.io/v1/chat/completions", {
             method: "POST",
