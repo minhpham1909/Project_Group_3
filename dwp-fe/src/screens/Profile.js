@@ -353,14 +353,14 @@ export default function Profile({ navigation }) {
                   color={COLORS.PRIMARY}
                 />
                 <Text style={styles.sectionTitle}>
-                  Các bài kiểm tra của tôi
+                  Các bài phân tích tóc của tôi
                 </Text>
               </View>
               {quizData.length === 0 ? (
                 <View style={styles.noDataContainer}>
                   <Ionicons name="book-outline" size={48} color={COLORS.GRAY} />
                   <Text style={styles.noDataText}>
-                    Chưa có bài kiểm tra nào.
+                    Chưa có bài phân tích nào.
                   </Text>
                 </View>
               ) : (

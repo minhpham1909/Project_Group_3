@@ -3,8 +3,15 @@ const bodyParser = require("body-parser");
 const morgan = require("morgan");
 const httpErrors = require("http-errors");
 const getLocalIP = require("./utils/ipconfig");
+// import cors from 'cors';
 
-
+// app.use(cors({ 
+//   origin: '*', // Trong production nên giới hạn origin
+//   credentials: true 
+// }));
+// app.use(express.json({ limit: '10mb' })); // Tăng limit cho AI responses
+// app.use(express.urlencoded({ extended: true }));
+// app.use(morgan('dev'));
 const {
     AuthenticationRouter,
     UserRouter,
