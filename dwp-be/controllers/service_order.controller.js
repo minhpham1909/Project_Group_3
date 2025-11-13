@@ -37,110 +37,135 @@ const getOrderByUserId = async (req, res) => {
 };
 
 const createServiceOrder = async (req, res) => {
+  try {
+    const { storeId, services, orderDate } = req.body;
+
+    console.log("📦 Request body:", req.body);
+
+    // 1️⃣ Tạo đơn hàng mới
+    const newOrder = new ServiceOrders({
+      customerId: req.params.userId,
+      storeId,
+      services,
+      orderDate,
+      status: "Pending",
+    });
+
+    console.log("🛠 Services:", services.map((s) => s.service_name).join(", "));
+
+    const user = await userModel.findById(req.params.userId);
+    const nameShop = await Store.findById(storeId);
+
+    // 2️⃣ Lưu đơn hàng vào MongoDB
+    await newOrder.save();
+
+    const authCode = {
+      message: "Order created successfully",
+      order: newOrder,
+      service_name: services.map((s) => s.service_name),
+      service_price: services.map((s) => s.service_price),
+      store_name: nameShop?.nameShop,
+      date: orderDate,
+    };
+
+    // 3️⃣ Trả response NGAY cho FE trước (tránh chậm)
+    res.status(201).json(authCode);
+
+    // 4️⃣ Gửi email ở background — có log lỗi nếu thất bại
     try {
-        const { storeId, services, orderDate } = req.body;
-
-        console.log(req.body);
-
-        // Tạo một đối tượng đơn hàng mới
-        const newOrder = new ServiceOrders({
-            customerId: req.params.userId,
-            storeId,
-            services,
-            orderDate,
-            status: "Pending"
-        });
-
-        console.log("name", services.map(service => service.service_name).join(', '));
-
-        const user = await userModel.findById(req.params.userId);
-
-        const nameShop = await Store.findById(storeId);
-
-        // Lưu đơn hàng vào MongoDB
-        await newOrder.save();
-
-        const authCode = {
-            message: "Order created successfully",
-            order: newOrder,
-            service_name: services.map(service => service.service_name),
-            service_price: services.map(service => service.service_price),
-            store_name: nameShop.nameShop,
-            date: orderDate
-        };
-
-        res.status(201).json(authCode);
-        await sendEmail(user.account.email, user.profile.name, authCode, actions.BOOKING_SERVICE);
-
-
-    } catch (err) {
-        console.error('Error creating order:', err);
-        res.status(500).json({ message: 'Server Error' });
+      await sendEmail(
+        user.account.email,
+        user.profile.name,
+        authCode,
+        actions.BOOKING_SERVICE
+      );
+      console.log(`✅ Email sent to ${user.account.email}`);
+    } catch (emailError) {
+      console.error("❌ Failed to send email:", emailError.message);
     }
+  } catch (err) {
+    console.error("🚨 Error creating order:", err);
+    res.status(500).json({ message: "Server Error", error: err.message });
+  }
 };
+
 
 const createServiceOrderByServiceById = async (req, res) => {
-    try {
-        const { order_time, customerId, service_price, slot_service } = req.body;
-        const { serviceId } = req.params;
-        const store = await Store.findOne({ "services._id": serviceId });
+  try {
+    const { order_time, customerId, service_price, slot_service } = req.body;
+    const { serviceId } = req.params;
 
-        const user = await userModel.findById(customerId);
+    console.log("📅 order_time:", order_time);
 
-         console.log(order_time);
-
-        if (!store) {
-            return res.status(404).json({ message: "Service not found" });
-        }
-
-        const service = store.services.find(s => s._id.toString() === serviceId);
-
-        if (!service) {
-            return res.status(404).json({ message: "Service not found in the store" });
-        }
-
-        if (!service_price || !slot_service) {
-            return res.status(400).json({ message: "Service price and slot service are required" });
-        }
-
-        console.log(req.body);
-
-        // Tạo đối tượng đơn hàng mới
-        const newOrder = new ServiceOrders({
-            customerId: customerId,
-            storeId: store._id,  // Dùng store._id thay vì store.storeId.nameShop
-            services: {
-                serviceId: service._id,  // Dịch vụ từ mảng services
-                service_name: service.service_name,  // Tên dịch vụ
-                service_price,  // Giá dịch vụ từ body
-                slot_service,   // Slot dịch vụ từ body
-            },
-            orderDate: order_time,
-            status: "Pending"
-        });
-
-        await newOrder.save();
-
-        const authCode = {
-            message: "Order created successfully",
-            order: newOrder,
-            service_name: service.service_name,
-            store_name: store.nameShop,
-            service_price: service.service_price,
-            date: order_time
-        };
-
-        res.status(201).json(authCode);  // Trả về authCode như là phản hồi
-
-        // Gửi email với authCode
-        await sendEmail(user.account.email, user.profile.name, authCode, actions.BOOKING_SERVICE);
-        console.log(user.account.email + " Gửi mail thành công");
-
-    } catch (err) {
-        console.error('Error creating order:', err);
-        res.status(500).json({ message: 'Server Error' });
+    const store = await Store.findOne({ "services._id": serviceId });
+    if (!store) {
+      return res.status(404).json({ message: "Service not found" });
     }
+
+    const service = store.services.find((s) => s._id.toString() === serviceId);
+    if (!service) {
+      return res
+        .status(404)
+        .json({ message: "Service not found in the store" });
+    }
+
+    if (!service_price || !slot_service) {
+      return res
+        .status(400)
+        .json({ message: "Service price and slot service are required" });
+    }
+
+    const user = await userModel.findById(customerId);
+    console.log("📦 Request body:", req.body);
+
+    // 1️⃣ Tạo đối tượng đơn hàng mới
+    const newOrder = new ServiceOrders({
+      customerId,
+      storeId: store._id,
+      services: {
+        serviceId: service._id,
+        service_name: service.service_name,
+        service_price,
+        slot_service,
+      },
+      orderDate: order_time,
+      status: "Pending",
+    });
+
+    // 2️⃣ Lưu đơn hàng vào DB
+    await newOrder.save();
+
+    // 3️⃣ Chuẩn bị thông tin trả về
+    const authCode = {
+      message: "Order created successfully",
+      order: newOrder,
+      service_name: service.service_name,
+      store_name: store.nameShop,
+      service_price: service_price,
+      date: order_time,
+    };
+
+    // 4️⃣ Trả response trước (FE nhận được ngay)
+    res.status(201).json(authCode);
+
+    // 5️⃣ Gửi email trong nền, có log lỗi riêng
+    try {
+      await sendEmail(
+        user.account.email,
+        user.profile.name,
+        authCode,
+        actions.BOOKING_SERVICE
+      );
+      console.log(`✅ Email sent successfully to ${user.account.email}`);
+    } catch (emailError) {
+      console.error("❌ Failed to send email:", emailError.message);
+    }
+  } catch (err) {
+    console.error("🚨 Error creating order:", err);
+    res.status(500).json({ message: "Server Error", error: err.message });
+  }
 };
+
 
 const changeStatusOrder = async (req, res) => {
     try {

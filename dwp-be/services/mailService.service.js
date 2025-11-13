@@ -14,30 +14,50 @@ const transporter = nodemailer.createTransport({
 
 // Hàm gửi email
 const sendEmail = async (recipientEmail, username, authCode, action) => {
-  let emailText = '';
-  let emailSubject = '';
+  try {
+    let emailText = "";
+    let emailSubject = "";
 
-  if (action === actions.FORGET_PASSWORD) {
-    emailText = messages.MESSAGE001(username, authCode);
-    emailSubject = "Request to Reset Your Password by StyleMe-Team";  
-  }else if (action === actions.BOOKING_SERVICE) {
-    emailText = messages.MESSAGE002(username, authCode);
-    emailSubject = "Booking Service Successfully by StyleMe-Team";  
+    switch (action) {
+      case actions.FORGET_PASSWORD:
+        emailText = messages.MESSAGE001(username, authCode);
+        emailSubject = "Request to Reset Your Password by StyleMe-Team";
+        break;
+
+      case actions.BOOKING_SERVICE:
+        emailText = messages.MESSAGE002(username, authCode);
+        emailSubject = "Booking Service Successfully by StyleMe-Team";
+        break;
+
+      default:
+        emailText = messages.MESSAGE_ERROR;
+        emailSubject = "ERROR: Unknown action code.";
+        break;
+    }
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER || "noreply@styleme.vn", // ✅ fallback để tránh lỗi deploy
+      to: recipientEmail,
+      subject: emailSubject,
+      text: emailText,
+    };
+
+    // ✅ In log để kiểm tra khi deploy (chỉ log email đích, không log nội dung)
+    console.log(
+      `📧 Sending email to: ${recipientEmail} | Subject: ${emailSubject}`
+    );
+
+    // ✅ luôn await để đảm bảo promise thực thi
+    const info = await transporter.sendMail(mailOptions);
+
+    console.log("✅ Email sent:", info.messageId || info.response);
+    return info;
+  } catch (error) {
+    console.error("❌ Error sending email:", error.message);
+    throw error; // giữ để BE có thể log lỗi rõ ràng nếu cần
   }
-   else {
-    emailText = messages.MESSAGE_ERROR;
-    emailSubject = "ERROR: Unknown action code.";
-  }
-
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: recipientEmail,
-    subject: emailSubject,  
-    text: emailText
-  };
-
-  return transporter.sendMail(mailOptions);
 };
+
 
 function generateAuthCode() {
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
