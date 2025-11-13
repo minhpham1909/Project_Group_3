@@ -32,6 +32,11 @@
         "camera roll",
         "location",
         "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "camera",
+        "camera roll",
+        "location",
+        "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION"
       ],
       "package": "com.myapp.bundle"
@@ -41,9 +46,15 @@
     },
     "extra": {
       "eas": {
-        "projectId": "78f8930c-d701-4589-a54d-2ea317fb8165"
+        "projectId": "6c70e508-6243-4a64-ac7d-aa411a8c575e"
       }
     },
-    "owner": "tungtx6-dev"
+    "owner": "mihhhhhhhhhh",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/6c70e508-6243-4a64-ac7d-aa411a8c575e"
+    }
   }
 }
