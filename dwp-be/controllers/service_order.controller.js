@@ -189,6 +189,7 @@ const getNotificationByRoleUser = async (req, res) => {
         res.status(200).json({
             message: "Bạn đã đặt thành công",
             orders: userNotification.map(order => ({
+                id: order._id,                                           // Lấy id đơn hàng
                 storeName: order.storeId ? order.storeId.nameShop : "",  // Lấy tên cửa hàng
                 location: order.storeId ? order.storeId.address : "",   // Lấy địa chỉ cửa hàng
                 services: order.services.map(service => ({
