@@ -124,9 +124,9 @@ export default function Login({ navigation }) {
           <View style={styles.viewImage}>
             <CutMate width={180} height={80} />
           </View>
-          <Text style={styles.title}>Chào mừng trở lại!</Text>
+          <Text style={styles.title}>Chào mừng bạn đến với CutMate!</Text>
           <Text style={styles.subtitle}>
-            CutMate - Cắt ở đâu cũng đẹp - Vì có Mate
+            CutMate - Cắt ở đâu cũng đẹp - Vì có Mate!
           </Text>
         </View>
 

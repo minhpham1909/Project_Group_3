@@ -26,7 +26,8 @@ export const ROLE_NAME = {
   3: "Admin",
 };
 
-export const API_ROOT = "http://192.168.1.6:9999";
+// export const API_ROOT = "http://192.168.137.1:9999";
+export const API_ROOT = "https://becutmaterailwaydeploy-production.up.railway.app";
 
 // Colors
 export const COLORS = {

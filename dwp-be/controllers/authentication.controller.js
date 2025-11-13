@@ -83,10 +83,10 @@ async function signIn(req, res, next) {
       throw new createHttpError(404, "User not found");
     }
 
-    // const isMatch = await bcrypt.compare(password, existUser.account.password);
-    // if (!isMatch) {
-    //   throw new createHttpError(401, "Invalid password");
-    // }
+    const isMatch = await bcrypt.compare(password, existUser.account.password);
+    if (!isMatch) {
+      throw new createHttpError(401, "Invalid password");
+    }
 
     // Tạo access token
     const token = jwt.sign({ id: existUser._id }, process.env.SECRET_KEY, {

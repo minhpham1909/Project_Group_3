@@ -12,7 +12,7 @@ const getNavItems = (role) => {
 
   const roleSpecificItems = {
     1: [
-      { name: "Test", icon: "document-text-outline" },
+      { name: "Analysis", icon: "document-text-outline" },
       { name: "Map", icon: "map-outline" },
     
     ],

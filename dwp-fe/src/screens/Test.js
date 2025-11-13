@@ -67,7 +67,7 @@ export default function Test({ navigation }) {
   // Bắt đầu quiz và gọi API để lấy dữ liệu quiz
   const startQuiz = async () => {
     if (!title) {
-      Alert.alert("Lỗi", "Vui lòng chọn tiêu đề quiz.");
+      Alert.alert("Lỗi", "Vui lòng chọn mục tiêu tư vấn.");
       return;
     }
 
@@ -142,7 +142,7 @@ export default function Test({ navigation }) {
         console.log("Quiz đã gửi thành công", response.data);
         setFinished(true); // Đánh dấu quiz đã hoàn thành
         setAiFeedback(response.data.feedback); // Lưu phản hồi từ AI
-        Alert.alert("Success", "You have successfully submitted the quiz.");
+        Alert.alert("Thành công", "Đã gửi phân tích thành công.");
       } else {
         Alert.alert(
           "Lỗi",
@@ -167,7 +167,7 @@ export default function Test({ navigation }) {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#e91e63" />
-          <Text style={styles.loadingText}>Đang xử lý, vui lòng đợi...</Text>
+          <Text style={styles.loadingText}>Đang phân tích, vui lòng đợi...</Text>
         </View>
       </SafeAreaView>
     );
@@ -181,14 +181,14 @@ export default function Test({ navigation }) {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.setupHeader}>
-            <Text style={styles.setupTitle}>Bắt đầu Khảo Sát Mới</Text>
+            <Text style={styles.setupTitle}>Bắt Đầu Phân Tích Tóc</Text>
             <Text style={styles.setupSubtitle}>
-              Nhập thông tin cơ bản để tạo quiz
+              Cung cấp thông tin để hệ thống chẩn đoán và đưa ra lời khuyên
             </Text>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Tiêu đề Khảo Sát</Text>
+            <Text style={styles.label}>Mục Tiêu Của Bạn</Text>
             <TouchableOpacity
               style={styles.dropdownContainer}
               onPress={() => setShowTitleModal(true)}
@@ -200,7 +200,7 @@ export default function Test({ navigation }) {
                   !title ? styles.placeholderText : {},
                 ]}
               >
-                {title || "Chọn tiêu đề khảo sát"}
+                {title || "Chọn mục tiêu cần tư vấn"}
               </Text>
               <Text style={styles.dropdownArrow}>▼</Text>
             </TouchableOpacity>
@@ -209,10 +209,10 @@ export default function Test({ navigation }) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Mô tả Khảo Sát</Text>
+            <Text style={styles.label}>Mô Tả Tình Trạng Tóc</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Nhập mô tả"
+              placeholder="Ví dụ: Tóc tôi khô, xơ và dễ gãy rụng sau khi nhuộm..."
               value={description}
               onChangeText={setDescription}
               multiline
@@ -227,8 +227,13 @@ export default function Test({ navigation }) {
             onPress={startQuiz}
             activeOpacity={0.8}
           >
-            <Text style={styles.primaryButtonText}>Bắt Đầu Khảo Sát</Text>
+            <Text style={styles.primaryButtonText}>Bắt Đầu Phân Tích</Text>
           </TouchableOpacity>
+
+          {/* PHẦN NOTE MỚI ĐƯỢC THÊM */}
+          <Text style={styles.noteText}>
+            * Hệ thống sẽ tạo một bộ câu hỏi dựa trên thông tin bạn cung cấp để đưa ra lời khuyên chính xác nhất.
+          </Text>
         </ScrollView>
 
         {/* Modal cho dropdown select */}
@@ -240,7 +245,7 @@ export default function Test({ navigation }) {
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContainer}>
-              <Text style={styles.modalTitle}>Chọn Tiêu Đề Khảo Sát</Text>
+              <Text style={styles.modalTitle}>Chọn Mục Tiêu Tư Vấn</Text>
               <FlatList
                 data={quizTitles}
                 keyExtractor={(item, index) => index.toString()}
@@ -278,12 +283,16 @@ export default function Test({ navigation }) {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.completedHeader}>
-            <Text style={styles.completedTitle}>Hoàn Thành Khảo Sát!</Text>
-            <Text style={styles.completedSubtitle}>Cảm ơn bạn đã tham gia</Text>
+            <Text style={styles.completedTitle}>Đã Có Kết Quả Phân Tích!</Text>
+            <Text style={styles.completedSubtitle}>
+              Hãy xem lời khuyên từ CutMate Brain
+            </Text>
           </View>
 
           <View style={styles.feedbackSection}>
-            <Text style={styles.sectionTitle}>Nhận Xét Từ CutMate Brain</Text>
+            <Text style={styles.sectionTitle}>
+              Chẩn Đoán & Lời Khuyên từ CutMate Brain
+            </Text>
             <View style={styles.feedbackCard}>
               <ScrollView
                 style={styles.feedbackScroll}
@@ -311,14 +320,14 @@ export default function Test({ navigation }) {
             onPress={startQuiz}
             activeOpacity={0.8}
           >
-            <Text style={styles.secondaryButtonText}>Làm Lại Khảo Sát</Text>
+            <Text style={styles.secondaryButtonText}>Phân Tích Lại</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.primaryButton, styles.newButton]}
             onPress={resetForNewQuiz}
             activeOpacity={0.8}
           >
-            <Text style={styles.primaryButtonText}>Tạo Khảo Sát Mới</Text>
+            <Text style={styles.primaryButtonText}>Tạo Phân Tích Mới</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -329,8 +338,8 @@ export default function Test({ navigation }) {
     <SafeAreaView style={styles.container}>
       <View style={styles.quizHeader}>
         <View style={styles.headerContent}>
-          <Text style={styles.quizTitle}>Tên Khảo Sát: {title}</Text>
-          <Text style={styles.quizDescription}>Mô tả: {description}</Text>
+          <Text style={styles.quizTitle}>Mục tiêu: {title}</Text>
+          <Text style={styles.quizDescription}>Tình trạng: {description}</Text>
         </View>
         <View style={styles.progressBar}>
           <View style={styles.progressFill} />
@@ -392,7 +401,7 @@ export default function Test({ navigation }) {
         onPress={submitQuiz}
         activeOpacity={0.8}
       >
-        <Text style={styles.submitButtonText}>Đánh Giá</Text>
+        <Text style={styles.submitButtonText}>Xem Kết Quả Phân Tích</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -489,6 +498,16 @@ const styles = StyleSheet.create({
     height: 100,
     paddingTop: 12,
     textAlignVertical: "top",
+  },
+
+  // NOTE TEXT STYLE (MỚI THÊM)
+  noteText: {
+    marginTop: 12,
+    fontSize: 12,
+    color: "#666666",
+    textAlign: "center",
+    paddingHorizontal: 16,
+    fontStyle: "italic",
   },
 
   // Modal Styles
