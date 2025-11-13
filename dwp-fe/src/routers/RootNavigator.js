@@ -22,6 +22,7 @@ import Test from "../screens/Test";
 import RegisterScreen from "../screens/RegisterScreen";
 import ProductDetail from "../screens/ProductDetail";
 import RequestOrder from "../screens/RequestOrder";
+import OrderDetail from "../screens/OrderDetail";
 import { useSelector } from "react-redux";
 import { useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
@@ -47,6 +48,11 @@ function HomeStack() {
       <Stack.Screen
         name="ProductDetail"
         component={ProductDetail}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="OrderDetail"
+        component={OrderDetail}
         options={{ headerShown: false }}
       />
       <Stack.Screen
@@ -164,7 +170,6 @@ function RootNavigator() {
               }}
             />
           )}
-          {/* Bỏ StoreDetail và AddStore để tránh lỗi reference */}
         </>
       )}
     </Stack.Navigator>

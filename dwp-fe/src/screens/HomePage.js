@@ -223,13 +223,23 @@ const HomeScreen = ({ navigation }) => {
     if (filterSearch.trim()) {
       filtered = filtered
         .map((store) => {
+          const searchLower = filterSearch.toLowerCase();
+          const addressMatches = store.address
+            ?.toLowerCase()
+            .includes(searchLower);
           const matchingServices =
             store.services?.filter((s) =>
-              s.service_name.toLowerCase().includes(filterSearch.toLowerCase())
+              s.service_name.toLowerCase().includes(searchLower)
             ) || [];
-          return matchingServices.length > 0
-            ? { ...store, services: matchingServices }
-            : null;
+          if (addressMatches || matchingServices.length > 0) {
+            return {
+              ...store,
+              services: addressMatches
+                ? store.services || []
+                : matchingServices,
+            };
+          }
+          return null;
         })
         .filter(Boolean);
     }

@@ -324,6 +324,20 @@ const ProductDetail = ({ route, navigation }) => {
                   </Text>
                 </TouchableOpacity>
               </View>
+              <TouchableOpacity
+                style={styles.adviceCard}
+              >
+                {/* <Ionicons
+                  name="bulb-outline"
+                  size={24}
+                  color={COLORS.PRIMARY}
+                  style={{ marginRight: 8 }}
+                /> */}
+                
+                <Text style={styles.adviceCardText}>
+                 Chức năng Chọn địa điểm chính xác đang trong quá trình phát triển{" "}
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* OpenStreetMap Section */}

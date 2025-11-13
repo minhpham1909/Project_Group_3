@@ -38,6 +38,7 @@ export default function Notification({ navigation }) {
 
       if (response.data && Array.isArray(response.data.orders)) {
         setData(response.data.orders);
+        console.log("Notifications data:", response.data);
       } else {
         console.error("Dữ liệu không đúng cấu trúc:", response.data);
         setError("Dữ liệu không hợp lệ.");
@@ -99,7 +100,7 @@ export default function Notification({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <View style={styles.headerIconContainer}>
@@ -119,9 +120,16 @@ export default function Notification({ navigation }) {
         </View>
       ) : error ? (
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color={COLORS.ERROR} />
+          <Ionicons
+            name="alert-circle-outline"
+            size={64}
+            color={COLORS.ERROR}
+          />
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={fetchNotifications}>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={fetchNotifications}
+          >
             <Ionicons name="refresh" size={20} color={COLORS.WHITE} />
             <Text style={styles.retryButtonText}>Thử lại</Text>
           </TouchableOpacity>
@@ -142,8 +150,8 @@ export default function Notification({ navigation }) {
                 style={styles.notificationCard}
                 activeOpacity={0.7}
                 onPress={() => {
-                  navigation.navigate("ServiceDetail", {
-                    serviceId: notification.id,
+                  navigation.navigate("OrderDetail", {
+                    orderId: notification.id,
                   });
                 }}
               >
@@ -152,15 +160,25 @@ export default function Notification({ navigation }) {
                     <View
                       style={[
                         styles.statusIndicator,
-                        { backgroundColor: getStatusColor(notification.status) },
+                        {
+                          backgroundColor: getStatusColor(notification.status),
+                        },
                       ]}
                     />
                     <View style={styles.cardContent}>
                       <Text style={styles.serviceName} numberOfLines={1}>
-                        {notification.services[0]?.serviceName || "Dịch vụ không xác định"}
+                        {notification.services[0]?.serviceName ||
+                          "Dịch vụ không xác định"}
+                      </Text>
+                      <Text style={styles.serviceName} numberOfLines={1}>
+                        {notification.orderId || "Dịch vụ không xác định"}
                       </Text>
                       <View style={styles.storeInfo}>
-                        <Ionicons name="storefront-outline" size={16} color={COLORS.GRAY} />
+                        <Ionicons
+                          name="storefront-outline"
+                          size={16}
+                          color={COLORS.GRAY}
+                        />
                         <Text style={styles.storeName} numberOfLines={1}>
                           {notification.storeName || "Cửa hàng không xác định"}
                         </Text>
@@ -170,7 +188,11 @@ export default function Notification({ navigation }) {
                   <View
                     style={[
                       styles.statusBadge,
-                      { backgroundColor: `${getStatusColor(notification.status)}20` },
+                      {
+                        backgroundColor: `${getStatusColor(
+                          notification.status
+                        )}20`,
+                      },
                     ]}
                   >
                     <Ionicons
@@ -183,7 +205,11 @@ export default function Notification({ navigation }) {
 
                 <View style={styles.cardBody}>
                   <View style={styles.infoRow}>
-                    <Ionicons name="calendar-outline" size={18} color={COLORS.GRAY} />
+                    <Ionicons
+                      name="calendar-outline"
+                      size={18}
+                      color={COLORS.GRAY}
+                    />
                     <Text style={styles.infoText}>
                       {moment(notification.schedule)
                         .tz("Asia/Ho_Chi_Minh")
@@ -191,7 +217,11 @@ export default function Notification({ navigation }) {
                     </Text>
                   </View>
                   <View style={styles.infoRow}>
-                    <Ionicons name="location-outline" size={18} color={COLORS.GRAY} />
+                    <Ionicons
+                      name="location-outline"
+                      size={18}
+                      color={COLORS.GRAY}
+                    />
                     <Text style={styles.infoText} numberOfLines={2}>
                       {notification.location || "Chưa có địa điểm"}
                     </Text>
@@ -202,7 +232,11 @@ export default function Notification({ navigation }) {
                   <View
                     style={[
                       styles.statusContainer,
-                      { backgroundColor: `${getStatusColor(notification.status)}15` },
+                      {
+                        backgroundColor: `${getStatusColor(
+                          notification.status
+                        )}15`,
+                      },
                     ]}
                   >
                     <Ionicons
@@ -211,14 +245,21 @@ export default function Notification({ navigation }) {
                       color={getStatusColor(notification.status)}
                     />
                     <Text
-                      style={[styles.statusText, { color: getStatusColor(notification.status) }]}
+                      style={[
+                        styles.statusText,
+                        { color: getStatusColor(notification.status) },
+                      ]}
                     >
                       {notification.status || "Chưa xác định"}
                     </Text>
                   </View>
                   <View style={styles.viewDetailButton}>
                     <Text style={styles.viewDetailText}>Xem chi tiết</Text>
-                    <Ionicons name="chevron-forward" size={16} color={COLORS.PRIMARY} />
+                    <Ionicons
+                      name="chevron-forward"
+                      size={16}
+                      color={COLORS.PRIMARY}
+                    />
                   </View>
                 </View>
               </TouchableOpacity>
@@ -226,7 +267,11 @@ export default function Notification({ navigation }) {
           ) : (
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconContainer}>
-                <Ionicons name="notifications-off-outline" size={64} color={COLORS.GRAY} />
+                <Ionicons
+                  name="notifications-off-outline"
+                  size={64}
+                  color={COLORS.GRAY}
+                />
               </View>
               <Text style={styles.emptyTitle}>Không có thông báo</Text>
               <Text style={styles.emptyText}>
