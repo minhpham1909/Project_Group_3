@@ -71,6 +71,7 @@ export default function Profile({ navigation }) {
   const getQuizById = async (quizId) => {
     try {
       const res = await axios.get(`${API_ROOT}/quiz/${quizId}`);
+      console.log(res.data);
       setSelectedQuiz(res.data);
       setQuizModalVisible(true);
     } catch (error) {
@@ -143,44 +144,44 @@ export default function Profile({ navigation }) {
     setEditModalVisible(true);
   };
 
- const handleUpdateUser = async () => {
-   setIsUpdating(true);
-   try {
-     const payload = {
-       profile: {
-         name: editData.name,
-         phone: editData.phone,
-         gender: editData.gender,
-         address: editData.address,
-       },
-       ...(editData.address ? { isFirstLogin: false } : {}),
-     };
-     await axios.put(`${API_ROOT}/user/${userId}`, payload);
+  const handleUpdateUser = async () => {
+    setIsUpdating(true);
+    try {
+      const payload = {
+        profile: {
+          name: editData.name,
+          phone: editData.phone,
+          gender: editData.gender,
+          address: editData.address,
+        },
+        ...(editData.address ? { isFirstLogin: false } : {}),
+      };
+      await axios.put(`${API_ROOT}/user/${userId}`, payload);
 
-     // Update Redux ngay từ editData (fallback nếu fetch chậm)
-     dispatch(
-       updateUser({
-         user: {
-           ...userName, // Giữ các field cũ
-           name: editData.name, // Update name mới
-           profile: { ...userDetails?.profile, ...payload.profile }, // Merge profile
-         },
-       })
-     );
+      // Update Redux ngay từ editData (fallback nếu fetch chậm)
+      dispatch(
+        updateUser({
+          user: {
+            ...userName, // Giữ các field cũ
+            name: editData.name, // Update name mới
+            profile: { ...userDetails?.profile, ...payload.profile }, // Merge profile
+          },
+        })
+      );
 
-     Alert.alert("Thành công", "Cập nhật thông tin thành công!");
-     fetchUserDetails(); // Vẫn gọi để sync full data
-     setEditModalVisible(false);
-   } catch (error) {
-     console.log("Error updating user:", error.response || error);
-     Alert.alert(
-       "Lỗi",
-       error.response?.data?.message || "Không thể cập nhật. Thử lại sau."
-     );
-   } finally {
-     setIsUpdating(false);
-   }
- };
+      Alert.alert("Thành công", "Cập nhật thông tin thành công!");
+      fetchUserDetails(); // Vẫn gọi để sync full data
+      setEditModalVisible(false);
+    } catch (error) {
+      console.log("Error updating user:", error.response || error);
+      Alert.alert(
+        "Lỗi",
+        error.response?.data?.message || "Không thể cập nhật. Thử lại sau."
+      );
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const formatDate = (dateString) => {
     if (!dateString) return "Chưa có thông tin";
@@ -352,9 +353,7 @@ export default function Profile({ navigation }) {
                   size={24}
                   color={COLORS.PRIMARY}
                 />
-                <Text style={styles.sectionTitle}>
-                  Các bài phân tích tóc của tôi
-                </Text>
+                <Text style={styles.sectionTitle}>Lịch sử khảo sát</Text>
               </View>
               {quizData.length === 0 ? (
                 <View style={styles.noDataContainer}>
@@ -371,9 +370,11 @@ export default function Profile({ navigation }) {
                 >
                   {quizData.map((quiz, index) => (
                     <TouchableOpacity
-                      key={quiz.id || index}
+                      key={quiz._id || index}
                       style={styles.quizCard}
-                      onPress={() => getQuizById(quiz.id)}
+                      onPress={() =>
+                        navigation.navigate("QuizzDetail", { quizId: quiz._id })
+                      }
                     >
                       <Ionicons name="book" size={32} color={COLORS.PRIMARY} />
                       <Text style={styles.quizTitle} numberOfLines={2}>
@@ -398,7 +399,10 @@ export default function Profile({ navigation }) {
                 />
                 <Text style={styles.sectionTitle}>Cài đặt</Text>
               </View>
-              <TouchableOpacity style={styles.settingItem}>
+              <TouchableOpacity
+                style={styles.settingItem}
+                onPress={() => navigation.navigate("ChangePassword")}
+              >
                 <View style={styles.settingLeft}>
                   <View style={styles.settingIconContainer}>
                     <Ionicons
@@ -567,6 +571,7 @@ export default function Profile({ navigation }) {
           >
             <View style={styles.modalOverlay}>
               <View style={styles.modalContainer}>
+                {/* Header */}
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>
                     {selectedQuiz?.title || "Chi tiết bài kiểm tra"}
@@ -578,33 +583,72 @@ export default function Profile({ navigation }) {
                     <Ionicons name="close" size={24} color={COLORS.GRAY} />
                   </TouchableOpacity>
                 </View>
+
+                {/* Content */}
                 <ScrollView
                   style={styles.modalScroll}
                   showsVerticalScrollIndicator={false}
                 >
+                  {/* Ngày tạo */}
                   <Text style={styles.infoValue}>
                     Ngày tạo: {formatDate(selectedQuiz?.createdAt)}
                   </Text>
+
+                  {/* Mô tả */}
                   {selectedQuiz?.description && (
-                    <Text style={styles.quizDescription}>
-                      {selectedQuiz.description}
-                    </Text>
+                    <View style={{ marginVertical: SPACING.MEDIUM }}>
+                      <Text style={styles.sectionTitle}>Mô tả:</Text>
+                      <Text style={styles.quizDescription}>
+                        {selectedQuiz.description}
+                      </Text>
+                    </View>
                   )}
-                  {/* Có thể thêm danh sách câu hỏi nếu selectedQuiz.questions tồn tại */}
-                  {selectedQuiz?.questions &&
-                    selectedQuiz.questions.length > 0 && (
-                      <View style={styles.questionsList}>
-                        <Text style={styles.sectionTitle}>Câu hỏi:</Text>
-                        {selectedQuiz.questions.map((q, index) => (
-                          <View key={q.id || index} style={styles.questionItem}>
-                            <Text style={styles.quizTitle}>
-                              {index + 1}. {q.question}
+
+                  {/* Nhận xét AI */}
+                  {selectedQuiz?.commentAI && (
+                    <View style={styles.commentAIContainer}>
+                      <Text style={styles.sectionTitle}>Nhận xét AI:</Text>
+                      <Text style={styles.commentAIText}>
+                        {selectedQuiz.commentAI}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Danh sách câu hỏi */}
+                  {selectedQuiz?.questions?.length > 0 && (
+                    <View style={styles.questionsList}>
+                      <Text style={styles.sectionTitle}>Câu hỏi:</Text>
+                      {selectedQuiz.questions.map((q, index) => {
+                        const question = q.questionId; // questionId đã được populate
+                        if (!question) return null;
+                        return (
+                          <View key={index} style={styles.questionItem}>
+                            <Text style={styles.questionTitle}>
+                              {index + 1}. {question.content}
                             </Text>
+                            {question.options?.map((opt, idx) => {
+                              const isSelected = q.answers?.includes(opt);
+                              return (
+                                <Text
+                                  key={idx}
+                                  style={[
+                                    styles.optionText,
+                                    isSelected && styles.selectedOptionText,
+                                  ]}
+                                >
+                                  • {opt}
+                                  {isSelected && " (Đã chọn)"}
+                                </Text>
+                              );
+                            })}
                           </View>
-                        ))}
-                      </View>
-                    )}
+                        );
+                      })}
+                    </View>
+                  )}
                 </ScrollView>
+
+                {/* Button đóng */}
                 <TouchableOpacity
                   style={styles.modalButton}
                   onPress={() => setQuizModalVisible(false)}
@@ -774,6 +818,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: SPACING.SMALL,
   },
+  // NEW: Style for question titles (avoid centering from quizTitle)
+  questionTitle: {
+    fontSize: FONTS.MEDIUM,
+    fontWeight: "bold",
+    marginBottom: SPACING.SMALL,
+    color: COLORS.TEXT,
+  },
   settingItem: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -799,18 +850,23 @@ const styles = StyleSheet.create({
   settingText: { fontSize: FONTS.REGULAR, color: COLORS.TEXT },
   logoutText: { color: COLORS.ERROR },
   modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContainer: {
-    backgroundColor: COLORS.WHITE,
-    borderRadius: 16,
-    width: "90%",
-    maxHeight: "80%",
-    padding: 0,
-  },
+  flex: 1,
+  backgroundColor: "rgba(0,0,0,0.5)",
+  justifyContent: "center",
+  alignItems: "center",
+  paddingVertical: SPACING.LARGE, // thêm khoảng padding để modal không chạm viền
+},
+modalContainer: {
+  backgroundColor: COLORS.WHITE,
+  borderRadius: 16,
+  width: "90%",
+  maxHeight: "95%", // tăng chiều cao tối đa gần full màn hình
+  padding: 0,
+},
+modalScroll: {
+  flexGrow: 1, // cho ScrollView chiếm đủ height
+  padding: SPACING.LARGE,
+},
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -955,5 +1011,28 @@ const styles = StyleSheet.create({
   genderOptionTextSelected: {
     color: COLORS.WHITE,
     fontWeight: "bold",
+  },
+  infoLabel: {
+    fontWeight: "bold",
+    color: COLORS.DARK,
+  },
+  optionText: {
+    color: COLORS.GRAY,
+    marginLeft: 10,
+    marginBottom: 4,
+  },
+  // NEW: Missing styles for quiz modal
+  commentAIContainer: {
+    marginVertical: SPACING.MEDIUM,
+  },
+  commentAIText: {
+    fontSize: FONTS.REGULAR,
+    color: COLORS.TEXT,
+    lineHeight: 20,
+    marginTop: SPACING.SMALL,
+  },
+  selectedOptionText: {
+    fontWeight: "bold",
+    color: COLORS.PRIMARY,
   },
 });

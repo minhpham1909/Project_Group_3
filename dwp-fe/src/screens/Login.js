@@ -184,7 +184,7 @@ export default function Login({ navigation }) {
 
           <TouchableOpacity
             style={styles.forgotPassword}
-            onPress={() => setModalVisible(true)}
+            onPress={() => navigation.navigate("ForgetPassword")}
             disabled={loading}
           >
             <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>

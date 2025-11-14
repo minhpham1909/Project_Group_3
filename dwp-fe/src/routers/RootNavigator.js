@@ -23,6 +23,9 @@ import RegisterScreen from "../screens/RegisterScreen";
 import ProductDetail from "../screens/ProductDetail";
 import RequestOrder from "../screens/RequestOrder";
 import OrderDetail from "../screens/OrderDetail";
+import ChangePassword from "../screens/ChangePassword";
+import QuizzDetail from "../screens/QuizzDetail";
+import ForgetPassword from "../screens/ForgetPassword";
 import { useSelector } from "react-redux";
 import { useEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
@@ -142,6 +145,11 @@ function RootNavigator() {
         <>
           <Stack.Screen name="Login" component={SigninScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen
+            name="ForgetPassword"
+            component={ForgetPassword}
+            options={{ headerShown: false }}
+          />
         </>
       ) : (
         <>
@@ -170,6 +178,16 @@ function RootNavigator() {
               }}
             />
           )}
+          <Stack.Screen
+            name="ChangePassword"
+            component={ChangePassword}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="QuizzDetail"
+            component={QuizzDetail}
+            options={{ headerShown: false }}
+          />
         </>
       )}
     </Stack.Navigator>
