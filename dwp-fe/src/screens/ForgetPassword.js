@@ -75,7 +75,7 @@ const ForgetPassword = ({ navigation }) => {
           <Ionicons name="lock-open-outline" size={80} color={COLORS.PRIMARY} />
           <Text style={styles.title}>Quên mật khẩu?</Text>
           <Text style={styles.subtitle}>
-            Nhập email của bạn để nhận link đặt lại mật khẩu.
+            Nhập email của bạn để nhận đặt lại mật khẩu.
           </Text>
         </View>
 
