@@ -10,13 +10,13 @@ Your password is: ${authCode}
 
 https://chgpwd.fpt.edu.vn
 Thank you.
-StyleMe-Team.
+CutMate-Team.
   `,
 
   MESSAGE002: (username, authCode) => `
 Kính gửi ${username},
 
-Chúc mừng! Bạn đã đặt thành công dịch vụ tại StyleMe!
+Chúc mừng! Bạn đã đặt thành công dịch vụ tại CutMate!
 
 Thông tin chi tiết về lịch hẹn của bạn:
 - Trạng thái: ${authCode.message}
@@ -36,20 +36,20 @@ Thông tin chi tiết về lịch hẹn của bạn:
       : "Chưa xác định"
   }
 
-Chúng tôi rất mong được chào đón bạn tại StyleMe. Nếu có bất kỳ thay đổi nào về lịch hẹn, bạn vui lòng liên hệ với chúng tôi qua email support@styleme.vn hoặc hotline 1900-1234 để điều chỉnh kịp thời.
+Chúng tôi rất mong được chào đón bạn tại CutMate. Nếu có bất kỳ thay đổi nào về lịch hẹn, bạn vui lòng liên hệ với chúng tôi qua email support@cutmate.vn hoặc hotline 1900-1234 để điều chỉnh kịp thời.
 
 Lưu ý quan trọng:
 - Vui lòng đến đúng giờ để tránh mất lượt.
 - Mang theo mã xác nhận để check-in nhanh chóng.
 - Nếu hủy lịch ít hơn 24h trước, có thể áp dụng phí hủy 50%.
 
-Cảm ơn bạn đã lựa chọn sử dụng dịch vụ booking của StyleMe. Hẹn gặp lại bạn sớm!
+Cảm ơn bạn đã lựa chọn sử dụng dịch vụ booking của CutMate. Hẹn gặp lại bạn sớm!
 
 Trân trọng,
-Đội ngũ StyleMe
-Email: support@styleme.vn
+Đội ngũ CutMate
+Email: support@cutmate.vn
 Hotline: 1900-1234
-Website: www.styleme.vn
+Website: www.cutmate.vn
 `,
 
   MESSAGE_ERROR: "ERROR: Unknown action code.",
