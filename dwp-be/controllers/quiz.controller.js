@@ -37,10 +37,15 @@ const createRandomQuestionInQuiz = async (req, res) => {
 const getQuizById = async (req, res) => {
     try {
         const quizId = req.params.quizId;
-        const quizTest = await quizModel.findById(quizId)
-            .populate('questions.questionId', 'content options')  
-            .populate('categoryId', 'categoryName')
-            .exec();
+        const quizTest = await quizModel
+          .findById(quizId)
+          .populate({
+            path: "questions.questionId",
+            select: "content options", // lấy cả content và options
+          })
+          .populate("categoryId", "categoryName")
+          .lean() // trả về plain object để frontend dễ truy cập
+          .exec();
 
         if (!quizTest) {
             return res.status(404).json({ message: "quizTest not found" });

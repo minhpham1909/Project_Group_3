@@ -54,63 +54,45 @@ const forgotPassword = async (req, res, next) => {
 
 const changePassword = async (req, res, next) => {
   try {
-    const userId = await userModel.findById(req.params.id);
-    console.log(userId);
+    const userId = req.params.id;
     if (!userId) {
-      return res.status(404).json({
-        message: "User not found",
-      });
+      return res
+        .status(400)
+        .json({ message: "User id is required in params." });
     }
 
-    if (!req.body.password || !req.body.confirmPassword) {
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const oldPassword = req.body.oldPassword ?? req.body.password;
+    const newPassword = req.body.newPassword ?? req.body.confirmPassword;
+
+    if (!oldPassword || !newPassword) {
       return res.status(400).json({
         message: "Old password and new password are required",
       });
     }
-    if (req.body.password === req.body.confirmPassword) {
-      return res.status(400).json({
-        message: "New password must be different from old password",
-      });
+
+    if (oldPassword === newPassword) {
+      return res
+        .status(400)
+        .json({ message: "New password must be different from old password" });
     }
 
-    let attempts = 3;
-    let isMatch = false;
-
-    while (attempts > 0) {
-      isMatch = await bcrypt.compare(
-        req.body.password,
-        userId.account.password
-      );
-
-      if (isMatch) {
-        break;
-      } else {
-        attempts--;
-        if (attempts > 0) {
-          return res.status(400).json({
-            message: "Wrong password",
-            warning: `You have ${attempts} attempts left.`,
-          });
-        } else {
-          return res.status(400).json({
-            message: "Wrong password",
-            warning: "No attempts left. Please try again later.",
-          });
-        }
-      }
+    const isMatch = await bcrypt.compare(oldPassword, user.account.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Old password is incorrect" });
     }
 
-    const hashedPassword = await bcrypt.hash(
-      req.body.confirmPassword,
-      parseInt(process.env.SECRET_PASSWORD)
-    );
-    userId.account.password = hashedPassword;
-    await userId.save();
+    const saltRounds = parseInt(process.env.SALT_ROUNDS, 10) || 10;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
-    return res.status(200).json({
-      message: "Change password successfully",
-      pass: req.body.confirmPassword,
-    });
+    user.account.password = hashedPassword;
+    await user.save();
+
+    return res.status(200).json({ message: "Change password successfully" });
   } catch (error) {
     next(error);
   }

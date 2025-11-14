@@ -11,7 +11,7 @@ router.get("/:userId", UserController.getUserId);
 router.get("/list", UserController.getAllUsers);
 router.get("/request-list", UserController.getRequest);
 router.post("/forget-password", UserController.forgotPassword);
-router.post("/reset-password", UserController.changePassword);
+router.post("/reset-password/:id", UserController.changePassword);
 router.post("/chatBot", UserController.chatBot);
 router.put("/:userId", UserController.updateUser);
 router.put("/request-supplier/:id", UserController.requestRoleSupplier);

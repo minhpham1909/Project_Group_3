@@ -1,22 +1,28 @@
 const messages = {
   MESSAGE001: (username, authCode) => `
-    Hello, ${username}
+Xin chào ${username},
 
-** This is an automated message -- please do not reply as you will not receive a response. **
+Đây là mật khẩu mới của bạn cho CutMate. 
+**Vui lòng không chia sẻ mật khẩu này với bất kỳ ai**. 
+Hãy đăng nhập ngay và đổi mật khẩu để bảo vệ tài khoản của bạn.
 
-This message is in response to your request to reset your account password. 
-Please click the link below and follow the instructions to change your password.
-Your password is: ${authCode}
+Mật khẩu mới: ${authCode}
 
-https://chgpwd.fpt.edu.vn
-Thank you.
-StyleMe-Team.
-  `,
+Đăng nhập tại: www.cutmate.vn
+
+Cảm ơn bạn đã lựa chọn sử dụng dịch vụ booking của CutMate. Hẹn gặp lại bạn sớm!
+
+Trân trọng,
+Đội ngũ CutMate
+Email: support@cutmate.vn
+Hotline: 1900-1234
+Website: www.cutmate.vn
+`,
 
   MESSAGE002: (username, authCode) => `
 Kính gửi ${username},
 
-Chúc mừng! Bạn đã đặt thành công dịch vụ tại StyleMe!
+Chúc mừng! Bạn đã đặt thành công dịch vụ tại CutMate!
 
 Thông tin chi tiết về lịch hẹn của bạn:
 - Trạng thái: ${authCode.message}
@@ -36,20 +42,20 @@ Thông tin chi tiết về lịch hẹn của bạn:
       : "Chưa xác định"
   }
 
-Chúng tôi rất mong được chào đón bạn tại StyleMe. Nếu có bất kỳ thay đổi nào về lịch hẹn, bạn vui lòng liên hệ với chúng tôi qua email support@styleme.vn hoặc hotline 1900-1234 để điều chỉnh kịp thời.
+Chúng tôi rất mong được chào đón bạn tại CutMate. Nếu có bất kỳ thay đổi nào về lịch hẹn, bạn vui lòng liên hệ với chúng tôi qua email support@cutmate.vn hoặc hotline 1900-1234 để điều chỉnh kịp thời.
 
 Lưu ý quan trọng:
 - Vui lòng đến đúng giờ để tránh mất lượt.
 - Mang theo mã xác nhận để check-in nhanh chóng.
 - Nếu hủy lịch ít hơn 24h trước, có thể áp dụng phí hủy 50%.
 
-Cảm ơn bạn đã lựa chọn sử dụng dịch vụ booking của StyleMe. Hẹn gặp lại bạn sớm!
+Cảm ơn bạn đã lựa chọn sử dụng dịch vụ booking của CutMate. Hẹn gặp lại bạn sớm!
 
 Trân trọng,
-Đội ngũ StyleMe
-Email: support@styleme.vn
+Đội ngũ CutMate
+Email: support@cutmate.vn
 Hotline: 1900-1234
-Website: www.styleme.vn
+Website: www.cutmate.vn
 `,
 
   MESSAGE_ERROR: "ERROR: Unknown action code.",

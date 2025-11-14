@@ -21,12 +21,12 @@ const sendEmail = async (recipientEmail, username, authCode, action) => {
     switch (action) {
       case actions.FORGET_PASSWORD:
         emailText = messages.MESSAGE001(username, authCode);
-        emailSubject = "Request to Reset Your Password by StyleMe-Team";
+        emailSubject = "Request to Reset Your Password by CutMate-Team";
         break;
 
       case actions.BOOKING_SERVICE:
         emailText = messages.MESSAGE002(username, authCode);
-        emailSubject = "Booking Service Successfully by StyleMe-Team";
+        emailSubject = "Booking Service Successfully by CutMate-Team";
         break;
 
       default:
@@ -36,7 +36,7 @@ const sendEmail = async (recipientEmail, username, authCode, action) => {
     }
 
     const mailOptions = {
-      from: process.env.EMAIL_USER || "noreply@styleme.vn", // ✅ fallback để tránh lỗi deploy
+      from: process.env.EMAIL_USER || "noreply@CutMate.vn", // ✅ fallback để tránh lỗi deploy
       to: recipientEmail,
       subject: emailSubject,
       text: emailText,
