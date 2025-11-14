@@ -27,8 +27,8 @@ export const ROLE_NAME = {
 };
 
 // export const API_ROOT = "http://192.168.137.1:9999";
-export const API_ROOT =
-  "https://becutmaterailwaydeploy-production.up.railway.app";
+// export const API_ROOT = "https://becutmaterailwaydeploy-production.up.railway.app";
+export const API_ROOT = "https://be-cutmate-railway-deploy.onrender.com";
 
 // Colors
 export const COLORS = {

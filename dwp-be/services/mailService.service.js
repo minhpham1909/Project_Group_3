@@ -36,7 +36,7 @@ const sendEmail = async (recipientEmail, username, authCode, action) => {
     }
 
     const mailOptions = {
-      from: process.env.EMAIL_USER || "noreply@CutMate.vn", // ✅ fallback để tránh lỗi deploy
+      from: process.env.EMAIL_USER || "noreply@cutmate.vn", // ✅ fallback để tránh lỗi deploy
       to: recipientEmail,
       subject: emailSubject,
       text: emailText,
