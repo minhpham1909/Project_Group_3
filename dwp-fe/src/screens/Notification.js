@@ -170,9 +170,6 @@ export default function Notification({ navigation }) {
                         {notification.services[0]?.serviceName ||
                           "Dịch vụ không xác định"}
                       </Text>
-                      <Text style={styles.serviceName} numberOfLines={1}>
-                        {notification.orderId || "Dịch vụ không xác định"}
-                      </Text>
                       <View style={styles.storeInfo}>
                         <Ionicons
                           name="storefront-outline"
